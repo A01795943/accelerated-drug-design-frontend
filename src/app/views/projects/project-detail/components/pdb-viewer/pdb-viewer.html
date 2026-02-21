@@ -1,0 +1,13 @@
+<div class="pdb-viewer-wrapper d-flex flex-column">
+  <div #viewerContainer class="pdb-viewer-container flex-grow-1" [style.height.px]="height"></div>
+  <div class="pdb-viewer-toolbar d-flex gap-1 mt-2 flex-shrink-0">
+    <button type="button" class="btn btn-sm btn-outline-secondary" (click)="recenter()" title="Recenter / zoom to fit" aria-label="Recenter">
+      <iconify-icon icon="solar:restart-bold" class="fs-6"></iconify-icon>
+      <span class="ms-1">Recenter</span>
+    </button>
+    <button type="button" class="btn btn-sm" [class.btn-outline-secondary]="!showResidueLabels" [class.btn-primary]="showResidueLabels" (click)="toggleResidueLabels()" [attr.title]="showResidueLabels ? 'Hide residue labels' : 'Show residue labels'" [attr.aria-label]="showResidueLabels ? 'Hide residue labels' : 'Show residue labels'">
+      <iconify-icon icon="solar:tag-bold" class="fs-6"></iconify-icon>
+      <span class="ms-1">{{ showResidueLabels ? 'Hide' : 'Show' }} residue labels</span>
+    </button>
+  </div>
+</div>

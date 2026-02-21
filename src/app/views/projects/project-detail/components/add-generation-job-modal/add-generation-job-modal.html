@@ -1,0 +1,35 @@
+<div class="modal-header">
+  <h5 class="modal-title">Generación de datos sintéticos – Nuevo job</h5>
+  <button type="button" class="btn-close" aria-label="Close" (click)="cancel()"></button>
+</div>
+<div class="modal-body">
+  <form [formGroup]="form">
+    <div class="mb-3">
+      <label class="form-label">Backbone</label>
+      <select class="form-select" formControlName="backboneId">
+        <option [ngValue]="null">— Select backbone —</option>
+        @for (bb of completedBackbones; track bb.id) {
+          <option [ngValue]="bb.id">{{ bb.name }} (#{{ bb.id }})</option>
+        }
+      </select>
+      @if (completedBackbones.length === 0) {
+        <small class="text-muted">No completed backbones. Complete a backbone first.</small>
+      }
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Temperature</label>
+      <input type="number" class="form-control" formControlName="temperature" min="0" max="1" step="0.1" style="max-width: 120px;" placeholder="0.1" />
+      <small class="text-muted">0–1, default 0.1</small>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Number of sequences to generate</label>
+      <input type="number" class="form-control" formControlName="numSeqs" min="1" style="max-width: 120px;" />
+    </div>
+  </form>
+</div>
+<div class="modal-footer">
+  <button type="button" class="btn btn-outline-secondary" (click)="cancel()" [disabled]="submitting">Cancel</button>
+  <button type="button" class="btn btn-primary" (click)="create()" [disabled]="submitting || completedBackbones.length === 0">
+    {{ submitting ? 'Creating…' : 'Create' }}
+  </button>
+</div>

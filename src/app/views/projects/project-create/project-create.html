@@ -1,0 +1,145 @@
+<div class="row">
+  <div class="col-xl-12">
+    <div class="card">
+      <div class="card-header">
+        <h4 class="card-title">Create Project</h4>
+      </div>
+      <div class="card-body">
+        <form [formGroup]="form" (ngSubmit)="onSubmit()">
+          <div class="row">
+            <div class="col-lg-12">
+              <div class="mb-3">
+                <label for="project-name" class="form-label">Project name <span class="text-danger">*</span></label>
+                <input
+                  type="text"
+                  id="project-name"
+                  class="form-control"
+                  formControlName="name"
+                  placeholder="Enter project name"
+                />
+                @if (form.get('name')?.invalid && form.get('name')?.touched) {
+                  <small class="text-danger">Name is required.</small>
+                }
+              </div>
+            </div>
+            <div class="col-lg-12">
+              <div class="mb-3">
+                <label for="project-description" class="form-label">Description</label>
+                <textarea
+                  id="project-description"
+                  class="form-control"
+                  formControlName="description"
+                  rows="2"
+                  placeholder="Optional description"
+                ></textarea>
+              </div>
+            </div>
+          </div>
+
+          <h5 class="mb-3 mt-4">Target (PDB)</h5>
+          <div class="row">
+            <div class="col-lg-12">
+              <div class="form-check mb-2">
+                <input
+                  type="checkbox"
+                  class="form-check-input"
+                  id="target-download"
+                  formControlName="targetDownloadFromWeb"
+                />
+                <label class="form-check-label" for="target-download">Download target from RCSB (enter PDB ID below)</label>
+              </div>
+            </div>
+            @if (form.get('targetDownloadFromWeb')?.value) {
+              <div class="col-lg-6">
+                <div class="mb-3">
+                  <label for="target-name" class="form-label">PDB ID (e.g. 1ABC)</label>
+                  <input
+                    type="text"
+                    id="target-name"
+                    class="form-control"
+                    formControlName="targetName"
+                    placeholder="e.g. 1ABC"
+                  />
+                </div>
+              </div>
+            } @else {
+              <div class="col-lg-12">
+                <div class="mb-3">
+                  <label for="target-content" class="form-label">Target PDB content</label>
+                  <textarea
+                    id="target-content"
+                    class="form-control font-monospace"
+                    formControlName="target"
+                    rows="6"
+                    placeholder="Paste PDB content here"
+                  ></textarea>
+                </div>
+              </div>
+            }
+          </div>
+
+          <h5 class="mb-3 mt-4">Complex (PDB)</h5>
+          <div class="row">
+            <div class="col-lg-12">
+              <div class="form-check mb-2">
+                <input
+                  type="checkbox"
+                  class="form-check-input"
+                  id="complex-download"
+                  formControlName="complexDownloadFromWeb"
+                />
+                <label class="form-check-label" for="complex-download">Download complex from RCSB (enter PDB ID below)</label>
+              </div>
+            </div>
+            @if (form.get('complexDownloadFromWeb')?.value) {
+              <div class="col-lg-6">
+                <div class="mb-3">
+                  <label for="complex-name" class="form-label">PDB ID (e.g. 1ABC)</label>
+                  <input
+                    type="text"
+                    id="complex-name"
+                    class="form-control"
+                    formControlName="complexName"
+                    placeholder="e.g. 1ABC"
+                  />
+                </div>
+              </div>
+            } @else {
+              <div class="col-lg-12">
+                <div class="mb-3">
+                  <label for="complex-content" class="form-label">Complex PDB content</label>
+                  <textarea
+                    id="complex-content"
+                    class="form-control font-monospace"
+                    formControlName="complex"
+                    rows="6"
+                    placeholder="Paste PDB content here"
+                  ></textarea>
+                </div>
+              </div>
+            }
+          </div>
+
+          <div class="p-3 bg-light mb-0 rounded mt-4">
+            <div class="row justify-content-end g-2">
+              <div class="col-auto">
+                <button type="button" class="btn btn-outline-secondary" (click)="cancel()" [disabled]="submitting">
+                  Cancel
+                </button>
+              </div>
+              <div class="col-auto">
+                <button type="submit" class="btn btn-primary" [disabled]="form.invalid || submitting">
+                  @if (submitting) {
+                    Creating…
+                  } @else {
+                    Create Project
+                  }
+                </button>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

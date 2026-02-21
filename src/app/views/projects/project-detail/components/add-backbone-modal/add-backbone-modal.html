@@ -1,0 +1,64 @@
+<div class="modal-header">
+  <h5 class="modal-title">Add Backbone(s)</h5>
+  <button type="button" class="btn-close" aria-label="Close" (click)="cancel()"></button>
+</div>
+<div class="modal-body">
+  <form [formGroup]="form">
+    <div class="mb-3">
+      <label class="form-label">Contigs</label>
+      <div class="d-flex gap-2">
+        <textarea
+          class="form-control font-monospace flex-grow-1"
+          formControlName="contigs"
+          rows="3"
+          placeholder="Contigs (type or generate)"
+        ></textarea>
+        <button type="button" class="btn btn-outline-primary align-self-start" (click)="generateContigs()" [disabled]="generating.contigs">
+          {{ generating.contigs ? '…' : 'Generar' }}
+        </button>
+      </div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Hotspots</label>
+      <div class="d-flex gap-2">
+        <textarea
+          class="form-control font-monospace flex-grow-1"
+          formControlName="hotspots"
+          rows="3"
+          placeholder="Hotspots (type or generate)"
+        ></textarea>
+        <button type="button" class="btn btn-outline-primary align-self-start" (click)="generateHotspots()" [disabled]="generating.hotspots">
+          {{ generating.hotspots ? '…' : 'Generar' }}
+        </button>
+      </div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Chains to remove</label>
+      <div class="d-flex gap-2">
+        <textarea
+          class="form-control font-monospace flex-grow-1"
+          formControlName="chainsToRemove"
+          rows="3"
+          placeholder="Chains to remove (type or generate)"
+        ></textarea>
+        <button type="button" class="btn btn-outline-primary align-self-start" (click)="generateChainsToRemove()" [disabled]="generating.chainsToRemove">
+          {{ generating.chainsToRemove ? '…' : 'Generar' }}
+        </button>
+      </div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Number of backbones to generate</label>
+      <input type="number" class="form-control" formControlName="count" min="1" style="max-width: 120px;" />
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Iterations</label>
+      <input type="number" class="form-control" formControlName="iterations" min="1" style="max-width: 120px;" placeholder="30" />
+    </div>
+  </form>
+</div>
+<div class="modal-footer">
+  <button type="button" class="btn btn-outline-secondary" (click)="cancel()" [disabled]="submitting">Cancel</button>
+  <button type="button" class="btn btn-primary" (click)="create()" [disabled]="submitting">
+    {{ submitting ? 'Creating…' : 'Create' }}
+  </button>
+</div>

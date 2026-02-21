@@ -1,0 +1,47 @@
+<div class="modal-header">
+  <h5 class="modal-title">{{ title }}{{ showViewer ? ' – PDB' : '' }}</h5>
+  <button type="button" class="btn-close" aria-label="Close" (click)="close()"></button>
+</div>
+<div class="modal-body pdb-modal-body">
+  @if (showViewer) {
+    <ul ngbNav #nav="ngbNav" class="nav nav-tabs">
+      <li ngbNavItem="text" class="nav-item">
+        <a ngbNavLink class="nav-link">Text</a>
+        <ng-template ngbNavContent>
+          <div class="pdb-tab-content">
+            @if (pdbContent?.trim()) {
+              <pre class="pdb-content-pre bg-light-subtle p-3 rounded font-monospace mb-0">{{ pdbContent }}</pre>
+            } @else {
+              <p class="text-muted mb-0">No PDB content.</p>
+            }
+          </div>
+        </ng-template>
+      </li>
+      <li ngbNavItem="viewer" class="nav-item">
+        <a ngbNavLink class="nav-link">Viewer</a>
+        <ng-template ngbNavContent>
+          <div class="pdb-viewer-tab pdb-tab-content">
+            @if (pdbContent?.trim()) {
+              <app-pdb-viewer [pdbContent]="pdbContent" [title]="title" [height]="650"></app-pdb-viewer>
+            } @else {
+              <p class="text-muted mb-0">No PDB content to display.</p>
+            }
+          </div>
+        </ng-template>
+      </li>
+    </ul>
+    <div class="tab-content pt-3 flex-grow-1" [ngbNavOutlet]="nav"></div>
+  } @else {
+    <div class="pdb-tab-content">
+      @if (pdbContent?.trim()) {
+        <pre class="pdb-content-pre bg-light-subtle p-3 rounded font-monospace mb-0">{{ pdbContent }}</pre>
+      } @else {
+        <p class="text-muted mb-0">No content.</p>
+      }
+    </div>
+  }
+</div>
+<div class="modal-footer">
+  <button type="button" class="btn btn-outline-secondary" (click)="close()">Close</button>
+  <button type="button" class="btn btn-primary" (click)="download()" [disabled]="!pdbContent?.trim()">{{ showViewer ? 'Download PDB file' : 'Download' }}</button>
+</div>
