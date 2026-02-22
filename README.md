@@ -1,27 +1,53 @@
-# Larkon
+# Frontend — Drug Accelerator
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 18.0.3.
+Interfaz web del proyecto **Drug Accelerator** (diseño acelerado de fármacos). Permite gestionar proyectos, definir proteína diana y complejo, ejecutar backbones (RFdiffusion) y trabajos de generación de secuencias, visualizar estructuras PDB y comparar métricas.
 
-## Development server
+## Qué hace esta aplicación
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The application will automatically reload if you change any of the source files.
+- **Lista de proyectos**: Ver todos los proyectos y acceder al detalle de cada uno.
+- **Crear proyecto**: Alta de proyectos con nombre, descripción y opción de descargar diana/complejo desde la web (PDB).
+- **Detalle de proyecto**: Ver y gestionar backbones (contigs, hotspots, cadenas a eliminar, ejecución), lanzar trabajos de generación y ver resultados (CSV, FASTA, mejor PDB).
+- **Comparar métricas**: Comparar métricas entre dos trabajos de generación de un mismo proyecto.
+- **Autenticación**: Inicio de sesión y registro (implementación actual con backend simulado; los datos de proyectos usan la API real en `localhost:8080`).
 
-## Code scaffolding
+La aplicación espera que el backend del Drug Accelerator esté corriendo en `http://localhost:8080` (configurable en `src/environments/environment.ts`).
 
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
+## Cómo ejecutarla
 
-## Build
+### Requisitos
 
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory.
+- Node.js (v18 o superior recomendado)
+- npm o yarn
 
-## Running unit tests
+### Instalación
 
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
+```bash
+cd accelerated-drug-design-frontend/Larkon-Angular
+npm install
+```
 
-## Running end-to-end tests
+### Servidor de desarrollo
 
-Run `ng e2e` to execute the end-to-end tests via a platform of your choice. To use this command, you need to first add a package that implements end-to-end testing capabilities.
+```bash
+npm start
+```
 
-## Further help
+Se abre en **http://localhost:4200**. La aplicación se recarga al cambiar el código.
 
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+### Build de producción
+
+```bash
+npm run build
+```
+
+Los artefactos quedan en `dist/`.
+
+### Tests
+
+```bash
+npm test
+```
+
+## Proyecto Drug Accelerator
+
+Este frontend forma parte del proyecto **Drug Accelerator** (diseño acelerado de fármacos). Se comunica con el backend vía API REST para proyectos, backbones y trabajos de generación.
