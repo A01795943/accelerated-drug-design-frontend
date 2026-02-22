@@ -3,6 +3,7 @@ import { ProjectList } from './project-list/project-list';
 import { ProjectCreate } from './project-create/project-create';
 import { ProjectDetail } from './project-detail/project-detail';
 import { GenerationJobDetail } from '@views/projects/generation-job-detail/generation-job-detail';
+import { MetricsCompare } from '@views/projects/metrics-compare/metrics-compare';
 
 export const PROJECTS_ROUTES: Route[] = [
   {
@@ -24,6 +25,11 @@ export const PROJECTS_ROUTES: Route[] = [
     path: 'detail/:id',
     component: ProjectDetail,
     data: { title: 'Project Detail' },
+  },
+  {
+    path: 'detail/:projectId/compare',
+    component: MetricsCompare,
+    data: { title: 'Comparar métricas' },
   },
   {
     path: 'detail/:projectId/job/:jobId',

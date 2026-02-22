@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { environment } from '@environment/environment';
 
@@ -52,7 +52,17 @@ export interface GenerationJob {
   numSeqs?: number;
   outputCsv?: string;
   fasta?: string;
+  /** Best PDB content (from generation_jobs.best_pdb). */
+  bestPdb?: string;
+  /** Backbone id (from API when backbone is loaded). */
+  backboneId?: number;
+  /** Backbone name (from API when backbone is loaded). */
+  backboneName?: string;
   backbone?: Backbone;
+  /** Create datetime (ISO-8601 from API). */
+  createdAt?: string;
+  /** Completed datetime (ISO-8601 from API). */
+  completedAt?: string;
 }
 
 export interface GenerationJobRecord {
@@ -137,10 +147,20 @@ export class ProjectService {
     return this.http.get<GenerationJob>(`${this.apiUrl}/${projectId}/generation-jobs/${jobId}`);
   }
 
-  getGenerationJobRecords(projectId: number, jobId: number): Observable<GenerationJobRecord[]> {
-    return this.http
-      .get<RecordsPageResponse>(`${this.apiUrl}/${projectId}/generation-jobs/${jobId}/records`)
-      .pipe(map((res) => res?.records ?? []));
+  /**
+   * Fetches records for a generation job. Use options.size to request more than the default 50 (e.g. size: 10000 to load all).
+   */
+  getGenerationJobRecords(
+    projectId: number,
+    jobId: number,
+    options?: { batch?: number; size?: number }
+  ): Observable<GenerationJobRecord[]> {
+    let params = new HttpParams();
+    if (options?.batch != null) params = params.set('batch', String(options.batch));
+    if (options?.size != null) params = params.set('size', String(options.size));
+    const url = `${this.apiUrl}/${projectId}/generation-jobs/${jobId}/records`;
+    const req = params.keys().length ? this.http.get<RecordsPageResponse>(url, { params }) : this.http.get<RecordsPageResponse>(url);
+    return req.pipe(map((res) => res?.records ?? []));
   }
 
   /** Fetches CSV built from generation_jobs_records (excludes pdb, generation_job_id, n). */

@@ -1,14 +1,14 @@
 <div class="row">
   <div class="col-xl-12">
     @if (loading && !project) {
-      <p class="text-muted">Loading project…</p>
+      <p class="text-muted">Cargando proyecto…</p>
     } @else if (error) {
       <div class="alert alert-warning">{{ error }}</div>
     } @else if (project) {
       <!-- Project details card (collapsible) -->
       <div class="card mb-4">
         <div class="card-header d-flex align-items-center justify-content-between gap-2 py-3 px-4">
-          <h4 class="card-title mb-0">Project details</h4>
+          <h4 class="card-title mb-0">Detalles del proyecto</h4>
           <button
             type="button"
             class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center justify-content-center rounded-circle"
@@ -16,7 +16,7 @@
             [attr.aria-expanded]="!projectDetailsCollapsed"
             aria-controls="projectDetailsBody"
             (click)="projectDetailsCollapse.toggle()"
-            [attr.title]="projectDetailsCollapsed ? 'Show' : 'Hide'"
+            [attr.title]="projectDetailsCollapsed ? 'Mostrar' : 'Ocultar'"
           >
             <iconify-icon [icon]="projectDetailsCollapsed ? 'solar:alt-arrow-down-bold' : 'solar:alt-arrow-up-bold'" class="fs-5"></iconify-icon>
           </button>
@@ -25,18 +25,18 @@
         <div class="card-body">
           <div class="row">
             <div class="col-lg-6 mb-3">
-              <label class="form-label text-muted small mb-1">Name</label>
+              <label class="form-label text-muted small mb-1">Nombre</label>
               <p class="mb-0 fw-medium">{{ project.name }}</p>
             </div>
             <div class="col-lg-6 mb-3">
-              <label class="form-label text-muted small mb-1">Description</label>
+              <label class="form-label text-muted small mb-1">Descripción</label>
               <p class="mb-0">{{ project.description || '—' }}</p>
             </div>
             <div class="col-lg-6 mb-3">
               <div class="d-flex align-items-center gap-2 mb-1">
                 <label class="form-label text-muted small mb-0">Target</label>
-                <button type="button" class="btn btn-sm btn-outline-secondary" (click)="openPdbModal(project.target, 'Target')" title="Show PDB content">
-                  Show PDB
+                <button type="button" class="btn btn-sm btn-outline-secondary" (click)="openPdbModal(project.target, 'Target')" title="Ver contenido PDB">
+                  Ver PDB
                 </button>
               </div>
               <app-pdb-viewer [pdbContent]="project.target" title="Target"></app-pdb-viewer>
@@ -44,8 +44,8 @@
             <div class="col-lg-6 mb-3">
               <div class="d-flex align-items-center gap-2 mb-1">
                 <label class="form-label text-muted small mb-0">Complex</label>
-                <button type="button" class="btn btn-sm btn-outline-secondary" (click)="openPdbModal(project.complex, 'Complex')" title="Show PDB content">
-                  Show PDB
+                <button type="button" class="btn btn-sm btn-outline-secondary" (click)="openPdbModal(project.complex, 'Complex')" title="Ver contenido PDB">
+                  Ver PDB
                 </button>
               </div>
               <app-pdb-viewer [pdbContent]="project.complex" title="Complex"></app-pdb-viewer>
@@ -60,7 +60,7 @@
         <div class="card-header d-flex align-items-center justify-content-between gap-2 py-3 px-4">
           <h4 class="card-title mb-0">Backbones</h4>
           <div class="d-flex align-items-center gap-2">
-            <button type="button" class="btn btn-sm btn-primary" (click)="openAddBackboneModal()">Add backbone</button>
+            <button type="button" class="btn btn-sm btn-primary" (click)="openAddBackboneModal()">Añadir backbone</button>
             <button
               type="button"
               class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center justify-content-center rounded-circle"
@@ -68,7 +68,7 @@
               [attr.aria-expanded]="!backbonesSectionCollapsed"
               aria-controls="backbonesBody"
               (click)="backbonesSectionCollapsed = !backbonesSectionCollapsed"
-              [attr.title]="backbonesSectionCollapsed ? 'Show' : 'Hide'"
+              [attr.title]="backbonesSectionCollapsed ? 'Mostrar' : 'Ocultar'"
             >
               <iconify-icon [icon]="backbonesSectionCollapsed ? 'solar:alt-arrow-down-bold' : 'solar:alt-arrow-up-bold'" class="fs-5"></iconify-icon>
             </button>
@@ -77,7 +77,7 @@
         <div #backbonesCollapse="ngbCollapse" [(ngbCollapse)]="backbonesSectionCollapsed" id="backbonesBody" class="collapse show">
           <div class="card-body">
             @if (backbones.length === 0) {
-              <p class="text-muted mb-0">No backbones yet. Click "Add backbone" to create one.</p>
+              <p class="text-muted mb-0">Aún no hay backbones. Haga clic en "Añadir backbone" para crear uno.</p>
             } @else {
               <div class="row g-3">
                 @for (bb of backbones; track bb.id) {
@@ -101,34 +101,34 @@
                             <dd class="d-inline ms-1 mb-0 text-truncate" [title]="bb.hotspots || ''">{{ (bb.hotspots || '—') | slice:0:60 }}{{ (bb.hotspots?.length || 0) > 60 ? '…' : '' }}</dd>
                           </div>
                           <div class="col">
-                            <dt class="d-inline text-muted">Chains to remove:</dt>
+                            <dt class="d-inline text-muted">Cadenas a eliminar:</dt>
                             <dd class="d-inline ms-1 mb-0 text-truncate" [title]="bb.chainsToRemove || ''">{{ (bb.chainsToRemove || '—') | slice:0:60 }}{{ (bb.chainsToRemove?.length || 0) > 60 ? '…' : '' }}</dd>
                           </div>
                         </dl>
                         @if (bb.status === 'COMPLETED' && bb.structure) {
                           <div class="mt-2">
                             <div class="mb-1">
-                              <button type="button" class="btn btn-sm btn-outline-secondary" (click)="openPdbModal(bb.structure, bb.name)">Show PDB</button>
+                              <button type="button" class="btn btn-sm btn-outline-secondary" (click)="openPdbModal(bb.structure, bb.name)">Ver PDB</button>
                             </div>
                             <app-pdb-viewer [pdbContent]="bb.structure" [title]="bb.name" [height]="220"></app-pdb-viewer>
                           </div>
                         } @else if (bb.status === 'ERROR' && bb.error) {
                           <div class="mt-2">
-                            <label class="form-label small text-muted mb-1">Error details</label>
+                            <label class="form-label small text-muted mb-1">Detalles del error</label>
                             <textarea class="form-control form-control-sm font-monospace small" rows="3" readonly [value]="bb.error"></textarea>
                           </div>
                         } @else if (bb.status === 'RUNNING') {
-                          <div class="mt-2 py-2 small text-muted">Running…</div>
+                          <div class="mt-2 py-2 small text-muted">En ejecución…</div>
                         }
                         <button
                           type="button"
                           class="btn btn-sm btn-outline-danger position-absolute bottom-0 end-0 m-2 d-inline-flex align-items-center gap-1"
                           (click)="openConfirmDeleteBackbone(bb)"
-                          title="Delete backbone"
-                          aria-label="Delete backbone"
+                          title="Eliminar backbone"
+                          aria-label="Eliminar backbone"
                         >
                           <iconify-icon icon="solar:trash-bin-2-outline" class="fs-6"></iconify-icon>
-                          Delete
+                          Eliminar
                         </button>
                       </div>
                     </div>
@@ -145,6 +145,16 @@
         <div class="card-header d-flex align-items-center justify-content-between gap-2 py-3 px-4">
           <h4 class="card-title mb-0">Generación de datos sintéticos</h4>
           <div class="d-flex align-items-center gap-2">
+            @if (selectedJobIds.length > 0) {
+              <button type="button" class="btn btn-sm btn-outline-primary" (click)="consolidateCsv()">
+                Consolidar CSVs
+              </button>
+            }
+            @if (selectedJobIds.length >= 2) {
+              <button type="button" class="btn btn-sm btn-outline-primary" (click)="navigateToCompare()">
+                Comparar
+              </button>
+            }
             <button type="button" class="btn btn-sm btn-primary" (click)="openAddGenerationJobModal()" [disabled]="completedBackbones.length === 0">
               Nuevo job
             </button>
@@ -155,7 +165,7 @@
               [attr.aria-expanded]="!generationJobsSectionCollapsed"
               aria-controls="generationJobsBody"
               (click)="generationJobsSectionCollapsed = !generationJobsSectionCollapsed"
-              [attr.title]="generationJobsSectionCollapsed ? 'Show' : 'Hide'"
+              [attr.title]="generationJobsSectionCollapsed ? 'Mostrar' : 'Ocultar'"
             >
               <iconify-icon [icon]="generationJobsSectionCollapsed ? 'solar:alt-arrow-down-bold' : 'solar:alt-arrow-up-bold'" class="fs-5"></iconify-icon>
             </button>
@@ -164,46 +174,76 @@
         <div #generationJobsCollapse="ngbCollapse" [(ngbCollapse)]="generationJobsSectionCollapsed" id="generationJobsBody" class="collapse show">
           <div class="card-body">
             @if (generationJobs.length === 0) {
-              <p class="text-muted mb-0">No jobs yet. Click "Nuevo job" to create one (requires a completed backbone).</p>
+              <p class="text-muted mb-0">Aún no hay jobs. Haga clic en "Nuevo job" para crear uno (se requiere un backbone completado).</p>
             } @else {
               <div class="table-responsive">
                 <table class="table align-middle mb-0 table-hover">
                   <thead class="bg-light-subtle">
                     <tr>
+                      <th class="text-center" style="width: 2.5rem;">
+                        @if (completedJobs.length > 0) {
+                          <input
+                            type="checkbox"
+                            class="form-check-input"
+                            [checked]="allCompletedSelected"
+                            (change)="toggleSelectAllCompleted()"
+                            [attr.aria-label]="'Seleccionar todas las ejecuciones completadas'"
+                          />
+                        }
+                      </th>
                       <th>Run ID</th>
                       <th>Backbone</th>
+                      <th>Temperatura</th>
+                      <th>Nº secuencias</th>
+                      <th>Creado</th>
+                      <th>Completado</th>
                       <th>Status</th>
-                      <th>Temperature</th>
-                      <th>Num seqs</th>
-                      <th>Actions</th>
+                      <th>Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
                     @for (job of generationJobs; track job.id) {
                       <tr>
+                        <td class="text-center" style="width: 2.5rem;">
+                          <input
+                            type="checkbox"
+                            class="form-check-input"
+                            [checked]="isJobSelected(job)"
+                            [disabled]="!canSelectJob(job)"
+                            (change)="toggleJobSelection(job)"
+                            [attr.aria-label]="'Seleccionar run ' + (job.runId ?? job.id)"
+                          />
+                        </td>
                         <td><span class="small font-monospace">{{ job.runId ?? '—' }}</span></td>
-                        <td>{{ job.backbone?.name ?? '—' }}</td>
                         <td>
-                          <span class="badge {{ job.status === 'COMPLETED' ? 'bg-success-subtle text-success' : (job.status === 'ERROR' ? 'bg-danger-subtle text-danger' : 'bg-primary-subtle text-primary') }}">{{ job.status ?? '—' }}</span>
+                          @if (job.backboneId != null || job.backboneName) {
+                            <span class="text-muted small">#{{ job.backboneId }}</span>
+                            <span class="fw-medium ms-1">{{ job.backboneName ?? '—' }}</span>
+                          } @else {
+                            —
+                          }
                         </td>
                         <td>{{ job.temperature ?? '—' }}</td>
                         <td>{{ job.numSeqs ?? '—' }}</td>
+                        <td><span class="small">{{ job.createdAt ? (job.createdAt | date:'short') : '—' }}</span></td>
+                        <td><span class="small">{{ job.completedAt ? (job.completedAt | date:'short') : '—' }}</span></td>
+                        <td>
+                          <span class="badge {{ job.status === 'COMPLETED' ? 'bg-success-subtle text-success' : (job.status === 'ERROR' ? 'bg-danger-subtle text-danger' : 'bg-primary-subtle text-primary') }}">{{ job.status ?? '—' }}</span>
+                        </td>
                         <td>
                           <div class="d-flex gap-1 flex-wrap">
                             @if (job.status === 'COMPLETED') {
-                              <button type="button" class="btn btn-sm btn-outline-secondary" (click)="downloadCsv(job)" title="Download CSV">CSV</button>
-                              <button type="button" class="btn btn-sm btn-outline-secondary" (click)="downloadFasta(job)" title="Download FASTA">FASTA</button>
-                              <a [routerLink]="['/projects/detail', project.id, 'job', job.id]" class="btn btn-sm btn-outline-primary">Details</a>
+                              <a [routerLink]="['/projects/detail', project.id, 'job', job.id]" class="btn btn-sm btn-outline-primary">Detalles</a>
                             }
                             @if (job.status === 'ERROR') {
-                              <button type="button" class="btn btn-sm btn-outline-warning d-inline-flex align-items-center gap-1" (click)="openJobErrorModal(job)" title="View error details">
+                              <button type="button" class="btn btn-sm btn-outline-warning d-inline-flex align-items-center gap-1" (click)="openJobErrorModal(job)" title="Ver detalles del error">
                                 <iconify-icon icon="solar:danger-circle-outline" class="fs-6"></iconify-icon>
                                 Error
                               </button>
                             }
-                            <button type="button" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1" (click)="openConfirmDeleteJob(job)" title="Delete job">
+                            <button type="button" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1" (click)="openConfirmDeleteJob(job)" title="Eliminar job">
                               <iconify-icon icon="solar:trash-bin-2-outline" class="fs-6"></iconify-icon>
-                              Delete
+                              Eliminar
                             </button>
                           </div>
                         </td>
@@ -222,40 +262,40 @@
 
 <ng-template #confirmDeleteBackboneTpl>
   <div class="modal-header">
-    <h5 class="modal-title">Delete backbone</h5>
-    <button type="button" class="btn-close" aria-label="Close" (click)="cancelDeleteBackbone()"></button>
+    <h5 class="modal-title">Eliminar backbone</h5>
+    <button type="button" class="btn-close" aria-label="Cerrar" (click)="cancelDeleteBackbone()"></button>
   </div>
   <div class="modal-body">
     @if (backboneToDelete) {
-      <p class="mb-0">Are you sure you want to delete <strong>{{ backboneToDelete.name }}</strong>? This cannot be undone.</p>
+      <p class="mb-0">¿Está seguro de que desea eliminar <strong>{{ backboneToDelete.name }}</strong>? Esta acción no se puede deshacer.</p>
     }
   </div>
   <div class="modal-footer">
-    <button type="button" class="btn btn-outline-secondary" (click)="cancelDeleteBackbone()">Cancel</button>
-    <button type="button" class="btn btn-danger" (click)="confirmDeleteBackbone()">Delete</button>
+    <button type="button" class="btn btn-outline-secondary" (click)="cancelDeleteBackbone()">Cancelar</button>
+    <button type="button" class="btn btn-danger" (click)="confirmDeleteBackbone()">Eliminar</button>
   </div>
 </ng-template>
 
 <ng-template #confirmDeleteJobTpl>
   <div class="modal-header">
-    <h5 class="modal-title">Delete generation job</h5>
-    <button type="button" class="btn-close" aria-label="Close" (click)="cancelDeleteJob()"></button>
+    <h5 class="modal-title">Eliminar job de generación</h5>
+    <button type="button" class="btn-close" aria-label="Cerrar" (click)="cancelDeleteJob()"></button>
   </div>
   <div class="modal-body">
     @if (jobToDelete) {
-      <p class="mb-0">Are you sure you want to delete job <strong>{{ jobToDelete.runId ?? jobToDelete.id }}</strong>? This cannot be undone.</p>
+      <p class="mb-0">¿Está seguro de que desea eliminar el job <strong>{{ jobToDelete.runId ?? jobToDelete.id }}</strong>? Esta acción no se puede deshacer.</p>
     }
   </div>
   <div class="modal-footer">
-    <button type="button" class="btn btn-outline-secondary" (click)="cancelDeleteJob()">Cancel</button>
-    <button type="button" class="btn btn-danger" (click)="confirmDeleteJob()">Delete</button>
+    <button type="button" class="btn btn-outline-secondary" (click)="cancelDeleteJob()">Cancelar</button>
+    <button type="button" class="btn btn-danger" (click)="confirmDeleteJob()">Eliminar</button>
   </div>
 </ng-template>
 
 <ng-template #jobErrorModalTpl>
   <div class="modal-header">
-    <h5 class="modal-title">Job error details</h5>
-    <button type="button" class="btn-close" aria-label="Close" (click)="closeJobErrorModal()"></button>
+    <h5 class="modal-title">Detalles del error del job</h5>
+    <button type="button" class="btn-close" aria-label="Cerrar" (click)="closeJobErrorModal()"></button>
   </div>
   <div class="modal-body">
     @if (jobErrorForModal) {
@@ -265,6 +305,6 @@
     }
   </div>
   <div class="modal-footer">
-    <button type="button" class="btn btn-secondary" (click)="closeJobErrorModal()">Close</button>
+    <button type="button" class="btn btn-secondary" (click)="closeJobErrorModal()">Cerrar</button>
   </div>
 </ng-template>

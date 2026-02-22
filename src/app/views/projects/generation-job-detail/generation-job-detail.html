@@ -1,12 +1,12 @@
 <div class="row">
   <div class="col-xl-12">
     @if (loading && !job) {
-      <p class="text-muted">Loading job…</p>
+      <p class="text-muted">Cargando job…</p>
     } @else if (error) {
       <div class="alert alert-warning">{{ error }}</div>
     } @else if (job) {
       <div class="d-flex align-items-center gap-2 mb-4">
-        <a [routerLink]="['/projects/detail', projectId]" class="btn btn-sm btn-outline-secondary">← Back to project</a>
+        <a [routerLink]="['/projects/detail', projectId]" class="btn btn-sm btn-outline-secondary">← Volver al proyecto</a>
         <h4 class="mb-0">Job {{ job.runId ?? job.id }}</h4>
         <span class="badge {{ job.status === 'COMPLETED' ? 'bg-success-subtle text-success' : (job.status === 'ERROR' ? 'bg-danger-subtle text-danger' : 'bg-primary-subtle text-primary') }}">{{ job.status ?? '—' }}</span>
       </div>
@@ -19,61 +19,76 @@
       }
 
       @if (job.status === 'COMPLETED') {
-        <!-- Stats -->
-        <div class="card mb-4">
-          <div class="card-header">
-            <h5 class="card-title mb-0">Statistics</h5>
-          </div>
-          <div class="card-body">
-            <div class="row g-3">
-              <div class="col-md-3">
-                <label class="form-label text-muted small mb-0">Count</label>
-                <p class="mb-0 fw-medium">{{ stats.count }}</p>
-              </div>
-              <div class="col-md-3">
-                <label class="form-label text-muted small mb-0">Mean pLDDT</label>
-                <p class="mb-0 fw-medium">{{ stats.meanPlddt != null ? (stats.meanPlddt | number:'1.2-2') : '—' }}</p>
-              </div>
-              <div class="col-md-3">
-                <label class="form-label text-muted small mb-0">Mean pTM</label>
-                <p class="mb-0 fw-medium">{{ stats.meanPtm != null ? (stats.meanPtm | number:'1.2-2') : '—' }}</p>
-              </div>
-              <div class="col-md-3">
-                <label class="form-label text-muted small mb-0">Mean RMSD</label>
-                <p class="mb-0 fw-medium">{{ stats.meanRmsd != null ? (stats.meanRmsd | number:'1.2-2') : '—' }}</p>
+        <!-- Statistics: Registros full-width, then metric cards -->
+        <div class="row g-3 mb-4">
+          <div class="col-12">
+            <div class="card">
+              <div class="card-body text-center py-3">
+                <h6 class="card-subtitle text-muted small mb-2">Registros</h6>
+                <p class="card-title mb-0 fs-4 fw-bold">{{ metricStats.count }}</p>
               </div>
             </div>
           </div>
         </div>
+        <div class="row g-3 mb-4">
+          @for (metric of metricCards; track metric.key) {
+            <div class="col-12 col-md-6 col-lg-4">
+              <div class="card h-100">
+                <div class="card-header py-2">
+                  <h6 class="card-title mb-0">{{ metric.label }}</h6>
+                </div>
+                <div class="card-body py-3 metric-stats-body">
+                  <dl class="row g-2 mb-0">
+                    <div class="col-6 text-muted">Mín</div>
+                    <div class="col-6 text-end">{{ metric.stats.min != null ? (metric.stats.min | number:'1.2-2') : '—' }}</div>
+                    <div class="col-6 text-muted">Máx</div>
+                    <div class="col-6 text-end">{{ metric.stats.max != null ? (metric.stats.max | number:'1.2-2') : '—' }}</div>
+                    <div class="col-6 text-muted">Promedio</div>
+                    <div class="col-6 text-end">{{ metric.stats.promedio != null ? (metric.stats.promedio | number:'1.2-2') : '—' }}</div>
+                    <div class="col-6 text-muted">Media</div>
+                    <div class="col-6 text-end">{{ metric.stats.media != null ? (metric.stats.media | number:'1.2-2') : '—' }}</div>
+                    <div class="col-6 text-muted">Desv. est.</div>
+                    <div class="col-6 text-end">{{ metric.stats.desvEst != null ? (metric.stats.desvEst | number:'1.2-2') : '—' }}</div>
+                    <div class="col-6 text-muted">Varianza</div>
+                    <div class="col-6 text-end">{{ metric.stats.varianza != null ? (metric.stats.varianza | number:'1.2-4') : '—' }}</div>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
 
         <!-- Top actions -->
-        <div class="d-flex gap-2 mb-4 flex-wrap">
-          <button type="button" class="btn btn-outline-primary" (click)="downloadCsv()">Download CSV</button>
-          <button type="button" class="btn btn-outline-primary" (click)="openFastaModal()">View FASTA</button>
-          <button type="button" class="btn btn-outline-secondary" (click)="downloadFasta()">Download FASTA</button>
+        <div class="d-flex gap-2 mb-4 flex-wrap justify-content-end">
+          @if (job.bestPdb?.trim()) {
+            <button type="button" class="btn btn-outline-primary" (click)="openBestPdbModal()">Ver mejor PDB</button>
+          }
+          <button type="button" class="btn btn-outline-primary" (click)="downloadCsv()">Descargar CSV</button>
+          <button type="button" class="btn btn-outline-primary" (click)="openFastaModal()">Ver FASTA</button>
         </div>
 
         <!-- Records table -->
         <div class="card">
           <div class="card-header">
-            <h5 class="card-title mb-0">CSV records</h5>
+            <h5 class="card-title mb-0">Registros</h5>
           </div>
           <div class="card-body">
             @if (records.length === 0) {
-              <p class="text-muted mb-0">No records yet.</p>
+              <p class="text-muted mb-0">Aún no hay registros.</p>
             } @else {
               <div class="table-responsive">
                 <table class="table align-middle mb-0 table-hover table-sm">
                   <thead class="bg-light-subtle">
                     <tr>
                       <th>#</th>
-                      <th>Seq</th>
+                      <th>Secuencia</th>
                       <th>MPNN</th>
                       <th>pLDDT</th>
                       <th>pTM</th>
-                      <th>iPTM</th>
+                      <th>PAE</th>
+                      <th>iPAE</th>
                       <th>RMSD</th>
-                      <th>Actions</th>
+                      <th>Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -84,11 +99,12 @@
                         <td><span class="text-truncate d-inline-block small" style="max-width: 80px;" [title]="rec.mpnn">{{ rec.mpnn ?? '—' }}</span></td>
                         <td>{{ rec.plddt != null ? (rec.plddt | number:'1.2-2') : '—' }}</td>
                         <td>{{ rec.ptm != null ? (rec.ptm | number:'1.2-2') : '—' }}</td>
-                        <td>{{ rec.iPtm != null ? (rec.iPtm | number:'1.2-2') : '—' }}</td>
+                        <td>{{ rec.pae ?? '—' }}</td>
+                        <td>{{ rec.iPae ?? '—' }}</td>
                         <td>{{ rec.rmsd != null ? (rec.rmsd | number:'1.2-2') : '—' }}</td>
                         <td>
                           @if (rec.pdb) {
-                            <button type="button" class="btn btn-sm btn-outline-secondary" (click)="openPdbModal(rec.pdb, 'Record ' + rec.n)">View PDB</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" (click)="openPdbModal(rec.pdb, 'Record ' + rec.n)">Ver PDB</button>
                           } @else {
                             <span class="text-muted small">—</span>
                           }

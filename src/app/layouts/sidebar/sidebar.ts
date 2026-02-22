@@ -185,15 +185,11 @@ export class Sidebar {
   }
 
   changeSidebarSize() {
-    let size = document.documentElement.getAttribute('data-menu-size');
-    if (size == 'sm-hover') {
-      size = 'sm-hover-active';
-    } else {
-      size = 'sm-hover';
-    }
+    const current = document.documentElement.getAttribute('data-menu-size');
+    const size = current === 'condensed' ? 'default' : 'condensed';
     this.store.dispatch(changesidebarsize({ size }));
-    this.store.select(getSidebarsize).subscribe((size) => {
-      document.documentElement.setAttribute('data-menu-size', size);
+    this.store.select(getSidebarsize).subscribe((s) => {
+      document.documentElement.setAttribute('data-menu-size', s);
     });
   }
 }

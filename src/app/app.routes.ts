@@ -7,7 +7,7 @@ import { inject } from '@angular/core'
 export const routes: Routes = [
   {
     path: '',
-    redirectTo: 'index',
+    redirectTo: 'projects/list',
     pathMatch: 'full',
   },
   {
@@ -33,13 +33,5 @@ export const routes: Routes = [
     component: AuthLayout,
     loadChildren: () =>
       import('./views/auth/auth.route').then((mod) => mod.AUTH_ROUTES),
-  },
-  {
-    path: 'pages',
-    component: AuthLayout,
-    loadChildren: () =>
-      import('./views/other-pages/other-page.route').then(
-        (mod) => mod.OTHER_PAGE_ROUTES
-      ),
   },
 ]

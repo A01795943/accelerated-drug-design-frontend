@@ -5,12 +5,45 @@ import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { ProjectService, type GenerationJob, type GenerationJobRecord } from '@core/services/project.service';
 import { PdbContentModal } from '../project-detail/components/pdb-content-modal/pdb-content-modal';
 
+export interface MetricStats {
+  min: number | null;
+  max: number | null;
+  promedio: number | null;
+  media: number | null;
+  desvEst: number | null;
+  varianza: number | null;
+}
+
+function computeMetricStats(values: number[]): MetricStats {
+  const empty: MetricStats = { min: null, max: null, promedio: null, media: null, desvEst: null, varianza: null };
+  if (values.length === 0) return empty;
+  const sorted = [...values].sort((a, b) => a - b);
+  const min = sorted[0] ?? null;
+  const max = sorted[sorted.length - 1] ?? null;
+  const sum = values.reduce((a, b) => a + b, 0);
+  const promedio = sum / values.length;
+  const media = sorted.length % 2 === 1
+    ? (sorted[Math.floor(sorted.length / 2)] ?? null)
+    : (((sorted[sorted.length / 2 - 1] ?? 0) + (sorted[sorted.length / 2] ?? 0)) / 2);
+  const sqDiffs = values.map((v) => (v - promedio) ** 2);
+  const varianza = sqDiffs.reduce((a, b) => a + b, 0) / values.length;
+  const desvEst = Math.sqrt(varianza);
+  return { min, max, promedio, media, desvEst, varianza };
+}
+
 @Component({
   selector: 'app-generation-job-detail',
   standalone: true,
   imports: [CommonModule, RouterLink],
   templateUrl: './generation-job-detail.html',
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
+  styles: [
+    `
+      .metric-stats-body {
+        font-size: 1rem;
+      }
+    `,
+  ],
 })
 export class GenerationJobDetail implements OnInit {
   private route = inject(ActivatedRoute);
@@ -24,22 +57,54 @@ export class GenerationJobDetail implements OnInit {
   loading = true;
   error: string | null = null;
 
-  /** Computed stats from records */
-  get stats(): { count: number; meanPlddt: number | null; meanPtm: number | null; meanRmsd: number | null } {
+  /** Per-metric stats: min, max, promedio (mean), media (median), desvEst (std dev), varianza */
+  get metricStats(): {
+    count: number;
+    mpnn: MetricStats;
+    plddt: MetricStats;
+    ptm: MetricStats;
+    pae: MetricStats;
+    iPae: MetricStats;
+    rmsd: MetricStats;
+  } {
     const r = this.records;
+    const empty: MetricStats = { min: null, max: null, promedio: null, media: null, desvEst: null, varianza: null };
     if (r.length === 0) {
-      return { count: 0, meanPlddt: null, meanPtm: null, meanRmsd: null };
+      return { count: 0, mpnn: { ...empty }, plddt: { ...empty }, ptm: { ...empty }, pae: { ...empty }, iPae: { ...empty }, rmsd: { ...empty } };
     }
-    const sum = (arr: GenerationJobRecord[], get: (x: GenerationJobRecord) => number | null | undefined) => {
-      const vals = arr.map(get).filter((v): v is number => typeof v === 'number');
-      return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+    const num = (v: unknown): number | null => {
+      if (typeof v === 'number' && !Number.isNaN(v)) return v;
+      if (typeof v === 'string') { const n = parseFloat(v); return !Number.isNaN(n) ? n : null; }
+      return null;
     };
+    const mpnnVals = r.map((x) => num(x.mpnn)).filter((v): v is number => v !== null);
+    const plddtVals = r.map((x) => num(x.plddt)).filter((v): v is number => v !== null);
+    const ptmVals = r.map((x) => num(x.ptm)).filter((v): v is number => v !== null);
+    const paeVals = r.map((x) => num(x.pae)).filter((v): v is number => v !== null);
+    const iPaeVals = r.map((x) => num(x.iPae)).filter((v): v is number => v !== null);
+    const rmsdVals = r.map((x) => num(x.rmsd)).filter((v): v is number => v !== null);
     return {
       count: r.length,
-      meanPlddt: sum(r, (x) => x.plddt),
-      meanPtm: sum(r, (x) => x.ptm),
-      meanRmsd: sum(r, (x) => x.rmsd),
+      mpnn: computeMetricStats(mpnnVals),
+      plddt: computeMetricStats(plddtVals),
+      ptm: computeMetricStats(ptmVals),
+      pae: computeMetricStats(paeVals),
+      iPae: computeMetricStats(iPaeVals),
+      rmsd: computeMetricStats(rmsdVals),
     };
+  }
+
+  /** For template: list of metric cards (label + stats). */
+  get metricCards(): { key: string; label: string; stats: MetricStats }[] {
+    const s = this.metricStats;
+    return [
+      { key: 'mpnn', label: 'MPNN', stats: s.mpnn },
+      { key: 'plddt', label: 'pLDDT', stats: s.plddt },
+      { key: 'ptm', label: 'pTM', stats: s.ptm },
+      { key: 'pae', label: 'PAE', stats: s.pae },
+      { key: 'iPae', label: 'iPAE', stats: s.iPae },
+      { key: 'rmsd', label: 'RMSD', stats: s.rmsd },
+    ];
   }
 
   ngOnInit(): void {
@@ -51,7 +116,7 @@ export class GenerationJobDetail implements OnInit {
       this.load();
     } else {
       this.loading = false;
-      this.error = 'Project or job ID missing.';
+      this.error = 'Faltan el ID del proyecto o del job.';
     }
   }
 
@@ -73,7 +138,8 @@ export class GenerationJobDetail implements OnInit {
 
   loadRecords(): void {
     if (this.projectId == null || this.jobId == null) return;
-    this.projectService.getGenerationJobRecords(this.projectId, this.jobId).subscribe({
+    // Request a large page size so all records are returned (backend default is 50)
+    this.projectService.getGenerationJobRecords(this.projectId, this.jobId, { size: 10000 }).subscribe({
       next: (list) => {
         this.records = list;
       },
@@ -129,5 +195,20 @@ export class GenerationJobDetail implements OnInit {
     });
     (modalRef.componentInstance as PdbContentModal).pdbContent = content ?? '';
     (modalRef.componentInstance as PdbContentModal).title = title;
+  }
+
+  /** Opens modal with best PDB (content + viewer tabs and download). */
+  openBestPdbModal(): void {
+    const content = this.job?.bestPdb ?? '';
+    if (!content.trim()) return;
+    const modalRef = this.modalService.open(PdbContentModal, {
+      fullscreen: true,
+      scrollable: true,
+    });
+    const instance = modalRef.componentInstance as PdbContentModal;
+    instance.pdbContent = content;
+    instance.title = 'Ver mejor PDB';
+    instance.showViewer = true;
+    instance.downloadExtension = 'pdb';
   }
 }

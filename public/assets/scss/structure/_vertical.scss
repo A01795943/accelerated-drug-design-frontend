@@ -10,23 +10,32 @@
      white-space: nowrap;
      transition: all 0.3s ease-in-out;
      line-height: $topbar-height;
-     padding: 0 $main-nav-item-padding-x;
+     padding: $main-nav-item-padding-y $main-nav-item-padding-x 0;
+
+     .logo-sm,
+     .logo-lg {
+          width: 75%;
+          height: auto;
+          max-width: 100%;
+          object-fit: contain;
+     }
 
      .logo-sm {
           display: none;
-          height: $logo-sm-height;
      }
 
      .logo-lg {
-          height: $logo-lg-height;
+          display: inline-block;
+     }
+
+     .logo-dark {
+          display: flex;
+          justify-content: center;
+          align-items: center;
      }
 
      .logo-light {
           display: none;
-     }
-
-     .logo-dark {
-          display: block;
      }
 }
 
@@ -51,6 +60,9 @@
           border-right: $card-border-width solid $main-nav-border-color;
           box-shadow: inset -8px 0px 8px -8px rgba(134, 110, 110, 0.25);
 
+          .button-sm-hover {
+               display: block;
+          }
 
           .scrollbar {
                height: calc(100% - $topbar-height);
@@ -226,20 +238,12 @@ html[data-menu-size="condensed"] {
           width: $main-nav-width-sm;
           min-width: $main-nav-width-sm;
 
+          .button-sm-hover {
+               display: block;
+          }
 
           .logo-box {
-               top: 0;
-               z-index: 1020 !important;
-               backdrop-filter: blur(10px);
-               // background: $main-nav-bg;
-
-               .logo-sm {
-                    display: inline-block;
-               }
-
-               .logo-lg {
-                    display: none;
-               }
+               display: none;
           }
 
           .menu-title {
@@ -584,7 +588,9 @@ html[data-menu-color="brand"] {
      .main-nav {
           .logo-box {
                .logo-light {
-                    display: block;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
                }
 
                .logo-dark {

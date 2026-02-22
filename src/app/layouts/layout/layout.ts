@@ -1,7 +1,6 @@
 import { Component, ChangeDetectorRef, inject, Renderer2, type OnInit, HostListener } from '@angular/core';
 import { Sidebar } from '../sidebar/sidebar';
 import { Topbar } from '../topbar/topbar';
-import { Footer } from '../footer/footer';
 import { RightSidebar } from '../rightsidebar/rightsidebar';
 import { RouterModule } from '@angular/router';
 import { Store } from '@ngrx/store';
@@ -15,7 +14,6 @@ import { changesidebarsize } from '@store/layout/layout-action';
   imports: [
     Sidebar,
     Topbar,
-    Footer,
     RouterModule,
   ],
   templateUrl: './layout.html',
@@ -61,7 +59,7 @@ export class Layout implements OnInit {
     this.store.select(getSidebarsize).subscribe((size: string) => {
       this.renderer.setAttribute(
         document.documentElement,
-        'data-sidenav-size',
+        'data-menu-size',
         size
       )
     })

@@ -1,80 +1,31 @@
 import { CommonModule } from '@angular/common';
-import {
-  Component,
-  CUSTOM_ELEMENTS_SCHEMA,
-  EventEmitter,
-  inject,
-  Input,
-  Output,
-} from '@angular/core';
-import { Router, RouterModule } from '@angular/router';
-import {
-  NgbActiveOffcanvas,
-  NgbDropdownModule,
-  NgbOffcanvas,
-  NgbOffcanvasModule,
-} from '@ng-bootstrap/ng-bootstrap';
+import { Component, CUSTOM_ELEMENTS_SCHEMA, inject } from '@angular/core';
 import { Store } from '@ngrx/store';
-import { changetheme } from '@store/layout/layout-action';
+import {
+  changetheme,
+  changemenucolor,
+  changetopbarcolor,
+} from '@store/layout/layout-action';
 import { getLayoutColor } from '@store/layout/layout-selector';
-import { SimplebarAngularModule } from 'simplebar-angular';
-import { ActivitiStrem } from './component/activiti-strem/activiti-strem';
-import { notificationsData } from './data';
-import { logout } from '@store/authentication/authentication.actions';
 
 @Component({
   selector: 'app-topbar',
   standalone: true,
-  imports: [
-    RouterModule,
-    CommonModule,
-    NgbOffcanvasModule,
-    SimplebarAngularModule,
-    NgbDropdownModule,
-  ],
+  imports: [CommonModule],
   templateUrl: './topbar.html',
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
-  providers: [NgbActiveOffcanvas],
 })
 export class Topbar {
-  @Input() title: string | undefined;
-  @Output() settingsButtonClicked = new EventEmitter();
-  @Output() mobileMenuButtonClicked = new EventEmitter();
-
-  router = inject(Router);
   store = inject(Store);
-  offcanvasService = inject(NgbOffcanvas);
-
-  notificationList = notificationsData;
-
-  settingMenu() {
-    this.settingsButtonClicked.emit();
-  }
-
-  toggleMobileMenu() {
-    this.mobileMenuButtonClicked.emit();
-  }
 
   changeTheme() {
     const color = document.documentElement.getAttribute('data-bs-theme');
-    if (color == 'light') {
-      this.store.dispatch(changetheme({ color: 'dark' }));
-    } else {
-      this.store.dispatch(changetheme({ color: 'light' }));
-    }
-    this.store.select(getLayoutColor).subscribe((color) => {
-      document.documentElement.setAttribute('data-bs-theme', color);
-    });
-  }
-
-  logout() {
-    this.store.dispatch(logout())
-  }
-
-  open() {
-    this.offcanvasService.open(ActivitiStrem, {
-      position: 'end',
-      panelClass: 'border-0 width-auto',
+    const next = color === 'light' ? 'dark' : 'light';
+    this.store.dispatch(changetheme({ color: next }));
+    this.store.dispatch(changemenucolor({ menu: next }));
+    this.store.dispatch(changetopbarcolor({ topbar: next }));
+    this.store.select(getLayoutColor).subscribe((c) => {
+      document.documentElement.setAttribute('data-bs-theme', c);
     });
   }
 }

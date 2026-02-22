@@ -1,0 +1,75 @@
+<div class="row">
+  <div class="col-xl-12">
+    @if (loading) {
+      <p class="text-muted">Cargando comparación…</p>
+    } @else if (error) {
+      <div class="alert alert-warning">{{ error }}</div>
+    } @else {
+      <div class="d-flex align-items-center gap-2 mb-4">
+        <a [routerLink]="['/projects/detail', projectId]" class="btn btn-sm btn-outline-secondary">← Volver al proyecto</a>
+        <h4 class="mb-0">Comparar métricas</h4>
+      </div>
+
+      <!-- Run info cards -->
+      <div class="row g-3 mb-4">
+        @for (card of runInfoCards; track card.runId) {
+          <div class="col-12 col-md-6 col-lg-4">
+            <div class="card h-100">
+              <div class="card-header py-2">
+                <h6 class="card-title mb-0 font-monospace">Run ID: {{ card.runId }}</h6>
+              </div>
+              <div class="card-body py-2 small">
+                <dl class="row mb-0 g-1">
+                  <dt class="col-sm-5 text-muted">Nº secuencias</dt>
+                  <dd class="col-sm-7 mb-0">{{ card.numSeqs ?? '—' }}</dd>
+                  <dt class="col-sm-5 text-muted">Temperatura</dt>
+                  <dd class="col-sm-7 mb-0">{{ card.temperature ?? '—' }}</dd>
+                  <dt class="col-sm-5 text-muted">Backbone</dt>
+                  <dd class="col-sm-7 mb-0 text-truncate" [title]="card.backboneName">{{ card.backboneName }}</dd>
+                  <dt class="col-sm-5 text-muted">Contigs</dt>
+                  <dd class="col-sm-7 mb-0 text-break" [title]="card.contigs">{{ (card.contigs.length > 60 ? card.contigs.slice(0, 60) + '…' : card.contigs) }}</dd>
+                  <dt class="col-sm-5 text-muted">Hotspots</dt>
+                  <dd class="col-sm-7 mb-0 text-break" [title]="card.hotspots">{{ (card.hotspots.length > 60 ? card.hotspots.slice(0, 60) + '…' : card.hotspots) }}</dd>
+                  <dt class="col-sm-5 text-muted">Cadenas eliminadas</dt>
+                  <dd class="col-sm-7 mb-0 text-break" [title]="card.chainsToRemove">{{ (card.chainsToRemove.length > 60 ? card.chainsToRemove.slice(0, 60) + '…' : card.chainsToRemove) }}</dd>
+                  <dt class="col-sm-5 text-muted">Iteraciones</dt>
+                  <dd class="col-sm-7 mb-0">{{ card.iterations ?? '—' }}</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+
+      <p class="text-muted small mb-4">
+        Runs comparados: <span class="fw-medium">{{ runLabels.join(', ') }}</span>
+      </p>
+
+      @for (item of chartOptionsByMetric; track item.key) {
+        <div class="card mb-4">
+          <div class="card-header">
+            <h5 class="card-title mb-0">{{ item.label }}</h5>
+          </div>
+          <div class="card-body">
+            <div class="apex-charts" [attr.id]="'chart-' + item.key">
+              <apx-chart
+                [chart]="item.options.chart!"
+                [series]="item.options.series!"
+                [xaxis]="item.options.xaxis!"
+                [yaxis]="item.options.yaxis!"
+                [plotOptions]="item.options.plotOptions!"
+                [dataLabels]="item.options.dataLabels!"
+                [stroke]="item.options.stroke!"
+                [fill]="item.options.fill!"
+                [colors]="item.options.colors!"
+                [legend]="item.options.legend!"
+                [grid]="item.options.grid!"
+                [tooltip]="item.options.tooltip!"
+              />
+            </div>
+          </div>
+        </div>
+      }
+    }
+  </div>
+</div>

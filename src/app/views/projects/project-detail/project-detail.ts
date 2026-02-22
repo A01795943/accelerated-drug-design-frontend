@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy, inject, CUSTOM_ELEMENTS_SCHEMA, ViewChild, TemplateRef } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { NgbModal, NgbModalRef, NgbCollapseModule } from '@ng-bootstrap/ng-bootstrap';
 import { RouterLink } from '@angular/router';
@@ -9,7 +9,8 @@ import { AddGenerationJobModal } from './components/add-generation-job-modal/add
 import { PdbViewerComponent } from './components/pdb-viewer/pdb-viewer';
 import { PdbContentModal } from './components/pdb-content-modal/pdb-content-modal';
 import { ToastrService } from 'ngx-toastr';
-import { forkJoin } from 'rxjs';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 
 const POLL_INTERVAL_MS = 60_000; // 1 minute
 
@@ -26,6 +27,7 @@ export class ProjectDetail implements OnInit, OnDestroy {
   @ViewChild('jobErrorModalTpl') jobErrorModalTpl!: TemplateRef<unknown>;
 
   private route = inject(ActivatedRoute);
+  private router = inject(Router);
   private modalService = inject(NgbModal);
   private projectService = inject(ProjectService);
   private toastr = inject(ToastrService);
@@ -42,6 +44,9 @@ export class ProjectDetail implements OnInit, OnDestroy {
   backbonesSectionCollapsed = false;
   /** Generación de datos sintéticos section: false = expanded, true = collapsed */
   generationJobsSectionCollapsed = false;
+
+  /** Selected generation job IDs (only completed runs can be selected). */
+  selectedJobIds: number[] = [];
 
   private statusPollTimer: ReturnType<typeof setInterval> | null = null;
   private generationJobPollTimer: ReturnType<typeof setInterval> | null = null;
@@ -100,6 +105,41 @@ export class ProjectDetail implements OnInit, OnDestroy {
         this.error = err?.message || 'Failed to load generation jobs.';
       },
     });
+  }
+
+  isJobSelected(job: GenerationJob): boolean {
+    return this.selectedJobIds.includes(job.id);
+  }
+
+  canSelectJob(job: GenerationJob): boolean {
+    return job.status === 'COMPLETED';
+  }
+
+  toggleJobSelection(job: GenerationJob): void {
+    if (!this.canSelectJob(job)) return;
+    const idx = this.selectedJobIds.indexOf(job.id);
+    if (idx === -1) {
+      this.selectedJobIds = [...this.selectedJobIds, job.id];
+    } else {
+      this.selectedJobIds = this.selectedJobIds.filter((id) => id !== job.id);
+    }
+  }
+
+  get completedJobs(): GenerationJob[] {
+    return this.generationJobs.filter((j) => j.status === 'COMPLETED');
+  }
+
+  get allCompletedSelected(): boolean {
+    const completed = this.completedJobs;
+    return completed.length > 0 && completed.every((j) => this.selectedJobIds.includes(j.id));
+  }
+
+  toggleSelectAllCompleted(): void {
+    if (this.allCompletedSelected) {
+      this.selectedJobIds = [];
+    } else {
+      this.selectedJobIds = this.completedJobs.map((j) => j.id);
+    }
   }
 
   /** Completed backbones for the add-generation-job modal. */
@@ -203,6 +243,53 @@ export class ProjectDetail implements OnInit, OnDestroy {
     (modalRef.componentInstance as AddGenerationJobModal).completedBackbones = this.completedBackbones;
     modalRef.closed.subscribe(() => {
       this.loadGenerationJobs(this.project!.id);
+    });
+  }
+
+  /** Same column order as single-job CSV: mpnn,plddt,ptm,i_ptm,pae,i_pae,rmsd,seq. */
+  private static readonly CSV_HEADER = 'mpnn,plddt,ptm,i_ptm,pae,i_pae,rmsd,seq';
+
+  /** Navigate to metrics compare page with selected job IDs. */
+  navigateToCompare(): void {
+    if (!this.project || this.selectedJobIds.length < 2) return;
+    const jobIds = this.selectedJobIds.join(',');
+    this.router.navigate(['/projects/detail', this.project.id, 'compare'], { queryParams: { jobIds } });
+  }
+
+  /** Fetch CSVs for selected runs and download one consolidated file (same columns as single-job CSV). */
+  consolidateCsv(): void {
+    if (!this.project || this.selectedJobIds.length === 0) return;
+    const selectedJobs = this.generationJobs.filter((j) => this.selectedJobIds.includes(j.id));
+    if (selectedJobs.length === 0) return;
+    const projectId = this.project.id;
+    forkJoin(
+      selectedJobs.map((job) =>
+        this.projectService.getGenerationJobRecordsCsv(projectId, job.id).pipe(
+          catchError(() => of('')),
+        )
+      )
+    ).subscribe({
+      next: (csvs: string[]) => {
+        const lines: string[] = [];
+        lines.push(ProjectDetail.CSV_HEADER);
+        selectedJobs.forEach((job, i) => {
+          const csv = (csvs[i] ?? '').trim();
+          const parts = csv.split(/\r?\n/).filter((line) => line.length > 0);
+          if (parts.length < 2) return;
+          const dataRows = parts.slice(1);
+          dataRows.forEach((row) => lines.push(row));
+        });
+        if (lines.length <= 1) return;
+        const content = lines.join('\n');
+        const blob = new Blob([content], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `consolidated-${this.project?.name ?? 'project'}-${Date.now()}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+      },
+      error: () => {},
     });
   }
 
