@@ -22,7 +22,7 @@ La aplicación espera que el backend del Drug Accelerator esté corriendo en `ht
 ### Instalación
 
 ```bash
-cd accelerated-drug-design-frontend/Larkon-Angular
+cd accelerated-drug-design-frontend
 npm install
 ```
 
