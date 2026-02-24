@@ -1,9 +1,9 @@
 # Frontend Drug Accelerator: build con URL del backend por parámetro, sirve con nginx.
 # Uso: docker build --build-arg API_URL=http://backend:8080 -t frontend .
 
-ARG API_URL
-
 FROM node:20-bookworm-slim AS builder
+
+ARG API_URL
 
 WORKDIR /app
 
@@ -14,9 +14,11 @@ RUN npm ci || npm install
 # Código y build con la URL del backend (configuración docker)
 COPY . .
 
-# API_URL la usa scripts/set-docker-env.js (referenciada por build:docker)
+# Sustituir __API_URL__ en environment.docker.ts (sin depender de scripts/set-docker-env.js)
 ENV API_URL=${API_URL}
-RUN npm run build:docker
+RUN node -e "const fs=require('fs');const p='/app/src/environments/environment.docker.ts';let c=fs.readFileSync(p,'utf8');c=c.replace(/__API_URL__/g,(process.env.API_URL||'http://localhost:8080'));fs.writeFileSync(p,c);"
+
+RUN npx ng build --configuration=docker
 
 # Imagen final: nginx sirve los estáticos
 # Si tu build no crea la subcarpeta browser, cambia a: COPY --from=builder /app/dist/larkon .
