@@ -11,17 +11,19 @@ Interfaz web del proyecto **Drug Accelerator** (diseño acelerado de fármacos).
 
 La aplicación consume la API del backend (puerto 8080). La URL del backend se define en el **build** con `API_URL` (configuración docker).
 
+**Instrucciones de la VM, Docker y despliegue del backend:** [README del backend](https://github.com/A01795943/accelerated-drug-design-backend/blob/main/README.md)
+
 ---
 
 ## Instalar y desplegar el frontend (admin en GCP)
 
-Esta guía asume que ya tienes una **VM en GCP** con Docker instalado y el **backend** desplegado (ver README del backend para crear la VM, instalar Docker y desplegar el backend). Si el sistema core se accede por **VPN Tailscale**, instala Tailscale en la VM antes (ver README del backend).
+Esta guía asume que ya tienes una **VM en GCP** con Docker instalado y el **backend** desplegado ([README del backend](https://github.com/A01795943/accelerated-drug-design-backend/blob/main/README.md) para crear la VM, instalar Docker y desplegar el backend). Si el sistema core se accede por **VPN Tailscale**, instala Tailscale en la VM antes (ver [README del backend](https://github.com/A01795943/accelerated-drug-design-backend/blob/main/README.md)).
 
 ### 1. Prerrequisitos en la VM
 
-- Docker y Docker Compose instalados (ver README del backend, sección “En la VM: instalar Docker”).
+- Docker y Docker Compose instalados (ver [README del backend](https://github.com/A01795943/accelerated-drug-design-backend/blob/main/README.md), sección “En la VM: instalar Docker”).
 - Backend corriendo y accesible (por ejemplo `http://IP_VM:8080`).
-- Puerto 4200 abierto en el firewall de la instancia (ver README del backend, “Abrir puerto 4200”).
+- Puerto 4200 abierto en el firewall de la instancia (ver [README del backend](https://github.com/A01795943/accelerated-drug-design-backend/blob/main/README.md), “Abrir puerto 4200”).
 
 ### 2. Desplegar el frontend
 
