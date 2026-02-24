@@ -5,6 +5,7 @@
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
+    "build:docker": "node scripts/set-docker-env.js && ng build --configuration=docker",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "format": "prettier --write src/**/*.{ts,html}"
