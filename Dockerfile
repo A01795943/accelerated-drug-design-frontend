@@ -29,9 +29,9 @@ RUN buildRoot=$(dirname $(find /app -name 'angular.json' -type f | head -1)) && 
   mkdir -p /app/dist-out && \
   (cp -r dist/larkon/browser/* /app/dist-out/ 2>/dev/null || cp -r dist/larkon/* /app/dist-out/)
 
-# Dejar nginx.conf en ruta fija (puede estar en subcarpeta del contexto)
+# Dejar nginx.conf en ruta fija (solo copiar si está en otra ruta; si no existe, crear uno por defecto)
 RUN f=$(find /app -name 'nginx.conf' -type f | head -1) && \
-  if [ -n "$f" ]; then cp "$f" /app/nginx.conf; else echo 'server{listen 80;server_name localhost;root /usr/share/nginx/html;index index.html;location /{try_files $uri $uri/ /index.html;}}' > /app/nginx.conf; fi
+  if [ -n "$f" ] && [ "$f" != "/app/nginx.conf" ]; then cp "$f" /app/nginx.conf; elif [ ! -f /app/nginx.conf ]; then echo 'server{listen 80;server_name localhost;root /usr/share/nginx/html;index index.html;location /{try_files $uri $uri/ /index.html;}}' > /app/nginx.conf; fi
 
 # Imagen final: nginx sirve los estáticos
 FROM nginx:alpine
