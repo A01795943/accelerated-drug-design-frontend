@@ -10,7 +10,7 @@ import { DecimalPipe } from '@angular/common'
 import {
   provideHttpClient,
   withFetch,
-  withInterceptorsFromDi,
+  withInterceptors,
 } from '@angular/common/http'
 import { BrowserModule } from '@angular/platform-browser'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
@@ -21,13 +21,12 @@ import { CalendarEffects } from '@store/calendar/calendar.effects'
 import { localStorageSyncReducer } from '@store/layout/layout-reducers'
 import { provideToastr } from 'ngx-toastr'
 import { routes } from './app.routes'
-import { FakeBackendProvider } from './helper/fake-backend'
 import { rootReducer } from './store'
+import { authInterceptor } from './core/interceptors/auth.interceptor'
 import { AuthenticationEffects } from '@store/authentication/authentication.effects'
 
 export const appConfig: ApplicationConfig = {
   providers: [
-    FakeBackendProvider,
     DecimalPipe,
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes),
@@ -35,7 +34,7 @@ export const appConfig: ApplicationConfig = {
     provideStoreDevtools({ maxAge: 25, logOnly: !isDevMode() }),
     provideEffects(CalendarEffects, AuthenticationEffects),
     importProvidersFrom(BrowserAnimationsModule, BrowserModule),
-    provideHttpClient(withFetch(), withInterceptorsFromDi()),
+    provideHttpClient(withFetch(), withInterceptors([authInterceptor])),
     provideToastr({}),
   ],
 }

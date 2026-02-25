@@ -13,6 +13,7 @@ import { Store } from '@ngrx/store';
 import { changesidebarsize } from '@store/layout/layout-action';
 import { getSidebarsize } from '@store/layout/layout-selector';
 import { SimplebarAngularModule } from 'simplebar-angular';
+import { AuthenticationService } from '@/app/core/services/auth.service';
 
 @Component({
   selector: 'app-sidebar',
@@ -38,6 +39,7 @@ export class Sidebar {
   );
 
   store = inject(Store);
+  auth = inject(AuthenticationService);
 
   constructor() {
     this.router.events.forEach((event) => {
@@ -59,7 +61,8 @@ export class Sidebar {
   }
 
   initMenu(): void {
-    this.menuItems = MENU;
+    const role = this.auth.user?.role || '';
+    this.menuItems = MENU.filter((item) => !item.roles || item.roles.includes(role));
   }
 
   ngAfterViewInit() {

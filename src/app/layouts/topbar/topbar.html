@@ -1,11 +1,21 @@
 <header class="topbar">
   <div class="container-fluid">
     <div class="navbar-header">
-      <div class="d-flex align-items-center justify-content-end w-100">
+      <div class="d-flex align-items-center justify-content-end w-100 gap-1">
         <div class="topbar-item">
           <button type="button" class="topbar-button" (click)="changeTheme()" id="light-dark-mode" aria-label="Toggle dark/light theme">
             <iconify-icon icon="solar:moon-bold-duotone" class="fs-24 align-middle"></iconify-icon>
           </button>
+        </div>
+        <div class="topbar-item" ngbDropdown placement="bottom-end">
+          <button type="button" class="topbar-button" id="userMenu" ngbDropdownToggle aria-label="Menú de usuario">
+            <iconify-icon icon="solar:user-bold-duotone" class="fs-24 align-middle"></iconify-icon>
+          </button>
+          <ul ngbDropdownMenu class="dropdown-menu-end" aria-labelledby="userMenu">
+            <li><a class="dropdown-item" href="javascript:void(0)" (click)="openChangePassword()">Cambiar contraseña</a></li>
+            <li><hr class="dropdown-divider" /></li>
+            <li><a class="dropdown-item text-danger" href="javascript:void(0)" (click)="doLogout()">Cerrar sesión</a></li>
+          </ul>
         </div>
       </div>
     </div>

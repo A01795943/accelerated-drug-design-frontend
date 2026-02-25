@@ -1,9 +1,19 @@
 import { Injectable, inject } from '@angular/core'
 import { HttpClient } from '@angular/common/http'
-import { map } from 'rxjs/operators'
+import { Observable, of } from 'rxjs'
+import { map, catchError } from 'rxjs/operators'
 
 import { CookieService } from 'ngx-cookie-service'
-import type { User } from '@/app/helper/fake-backend'
+import { environment } from '@environment/environment'
+import type { User } from '@store/authentication/auth.model'
+
+export interface LoginResponse {
+  token: string
+  id: number
+  username: string
+  email: string
+  role: string
+}
 
 @Injectable({ providedIn: 'root' })
 export class AuthenticationService {
@@ -11,21 +21,31 @@ export class AuthenticationService {
 
   public readonly authSessionKey = '_LARKON_AUTH_SESSION_KEY_'
   private cookieService = inject(CookieService)
+  private http = inject(HttpClient)
 
-  constructor(private http: HttpClient) {}
-
-  login(email: string, password: string) {
-    return this.http.post<User>(`/api/login`, { email, password }).pipe(
-      map((user) => {
-        // login successful if there's a jwt token in the response
-        if (user && user.token) {
-          this.user = user
-          // store user details and jwt in session
-          this.saveSession(user.token)
+  login(username: string, password: string) {
+    return this.http.post<LoginResponse>(`${environment.apiUrl}/api/auth/login`, { username, password }).pipe(
+      map((res) => {
+        if (res?.token) {
+          this.user = {
+            id: res.id,
+            username: res.username,
+            email: res.email,
+            role: (res.role?.toLowerCase() === 'admin' ? 'admin' : 'user') as 'admin' | 'user',
+            token: res.token,
+          }
+          this.saveSession(res.token)
         }
-        return user
+        return this.user!
       })
     )
+  }
+
+  changePassword(currentPassword: string, newPassword: string) {
+    return this.http.post<void>(`${environment.apiUrl}/api/auth/change-password`, {
+      currentPassword,
+      newPassword,
+    })
   }
 
   logout(): void {
@@ -44,5 +64,24 @@ export class AuthenticationService {
 
   removeSession(): void {
     this.cookieService.delete(this.authSessionKey)
+  }
+
+  /** Load current user from backend when we have a session (e.g. after refresh). */
+  loadCurrentUser(): Observable<User | null> {
+    if (this.user) return of(this.user)
+    if (!this.session) return of(null)
+    return this.http.get<LoginResponse>(`${environment.apiUrl}/api/auth/me`).pipe(
+      map((res) => {
+        this.user = {
+          id: res.id,
+          username: res.username,
+          email: res.email,
+          role: (res.role?.toLowerCase() === 'admin' ? 'admin' : 'user') as 'admin' | 'user',
+          token: this.session,
+        }
+        return this.user
+      }),
+      catchError(() => of(null))
+    )
   }
 }

@@ -1,28 +1,36 @@
-import { Component, inject } from '@angular/core';
+import { AsyncPipe } from '@angular/common';
+import { Component, inject, OnInit } from '@angular/core';
 import { FormsModule, ReactiveFormsModule, UntypedFormBuilder, Validators, type UntypedFormGroup } from '@angular/forms';
 import { RouterLink } from '@angular/router'
 import { LogoBox } from '@component/logo-box'
 import { Store } from '@ngrx/store';
-import { login } from '@store/authentication/authentication.actions';
+import { clearLoginError, login } from '@store/authentication/authentication.actions';
+import { getError } from '@store/authentication/authentication.selector';
+import { Observable } from 'rxjs';
 
 @Component({
   selector: 'app-signin',
   standalone: true,
-  imports: [LogoBox,RouterLink,FormsModule,ReactiveFormsModule],
+  imports: [AsyncPipe, LogoBox, RouterLink, FormsModule, ReactiveFormsModule],
   templateUrl: './signin.html',
   styles: ``
 })
-export class Signin {
+export class Signin implements OnInit {
   signInForm!: UntypedFormGroup
   submitted: boolean = false
+  loginError$: Observable<string | null>
 
   public fb = inject(UntypedFormBuilder)
   public store = inject(Store)
 
+  constructor() {
+    this.loginError$ = this.store.select(getError)
+  }
+
   ngOnInit(): void {
     this.signInForm = this.fb.group({
-      email: ['demo@demo.com', [Validators.required, Validators.email]],
-      password: ['123456', [Validators.required]],
+      username: ['admin', [Validators.required]],
+      password: ['admin', [Validators.required]],
     })
   }
 
@@ -32,12 +40,14 @@ export class Signin {
 
   login() {
     this.submitted = true
-    if (this.signInForm.valid) {     
-      const email = this.formValues['email'].value // Get the username from the form
-      const password = this.formValues['password'].value // Get the password from the form
-
-      // Login Api
-      this.store.dispatch(login({ email: email, password: password }))
+    if (this.signInForm.valid) {
+      const username = this.formValues['username'].value
+      const password = this.formValues['password'].value
+      this.store.dispatch(login({ username, password }))
     }
+  }
+
+  clearError() {
+    this.store.dispatch(clearLoginError())
   }
 }

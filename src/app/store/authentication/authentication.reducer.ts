@@ -1,5 +1,6 @@
 import { createReducer, on } from '@ngrx/store'
 import {
+  clearLoginError,
   login,
   loginFailure,
   loginSuccess,
@@ -29,6 +30,7 @@ export const authenticationReducer = createReducer(
     error: null,
   })),
   on(loginFailure, (state, { error }) => ({ ...state, error })),
+  on(clearLoginError, (state) => ({ ...state, error: null })),
 
   on(logout, (state) => ({ ...state, user: null }))
 )

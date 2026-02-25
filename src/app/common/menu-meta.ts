@@ -9,6 +9,8 @@ export type MenuItem = {
   badge?: any
   parentKey?: string
   disabled?: boolean
+  /** Si está definido, solo se muestra para estos roles (ej. ['admin']) */
+  roles?: string[]
 }
 
 export const MENU: MenuItem[] = [
@@ -31,5 +33,21 @@ export const MENU: MenuItem[] = [
         parentKey: 'projects',
       },
     ],
+  },
+  {
+    key: 'users',
+    icon: 'solar:users-group-rounded-bold-duotone',
+    label: 'Usuarios',
+    collapsed: true,
+    link: '/users/list',
+    subMenu: [
+      {
+        key: 'users-list',
+        label: 'Lista',
+        link: '/users/list',
+        parentKey: 'users',
+      },
+    ],
+    roles: ['admin'],
   },
 ]
