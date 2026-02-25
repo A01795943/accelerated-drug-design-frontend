@@ -8,3 +8,15 @@
 @import 'ngx-toastr/toastr';
 @import "../public/assets/scss/icons.scss";
 @import "../public/assets/scss/app.scss";
+
+/* Logo en pantallas de auth (login, etc.): mismo ancho que los campos y más grande */
+.auth-logo {
+  width: 100%;
+  img {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 140px;
+    object-fit: contain;
+    display: block;
+  }
+}

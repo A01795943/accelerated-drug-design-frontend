@@ -1,8 +1,21 @@
-import { Routes, Router, type UrlTree, RedirectCommand } from '@angular/router'
+import { Routes, Router, type UrlTree } from '@angular/router'
 import { Layout } from './layouts/layout/layout'
 import { AuthLayout } from '@layouts/auth-layout/auth-layout'
 import { AuthenticationService } from './core/services/auth.service'
 import { inject } from '@angular/core'
+import { map, take } from 'rxjs/operators'
+
+function authGuard() {
+  const router = inject(Router)
+  const auth = inject(AuthenticationService)
+  if (!auth.session) {
+    return router.createUrlTree(['/auth/signin'])
+  }
+  return auth.loadCurrentUser().pipe(
+    take(1),
+    map((user) => (user ? true : router.createUrlTree(['/auth/signin'])) as UrlTree | boolean)
+  )
+}
 
 export const routes: Routes = [
   {
@@ -13,18 +26,7 @@ export const routes: Routes = [
   {
     path: '',
     component: Layout,
-    canActivate: [
-      (url: any) => {
-        const router = inject(Router)
-        const currentUser = inject(AuthenticationService)
-        if (!currentUser.session) {
-          return router.createUrlTree(['/auth/signin'], {
-            queryParams: { returnUrl: url._routerState.url },
-          })
-        }
-        return true
-      },
-    ],
+    canActivate: [authGuard],
     loadChildren: () =>
       import('./views/views.route').then((mod) => mod.VIEW_ROUTES),
   },
