@@ -3,7 +3,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { NgbModal, NgbModalRef, NgbCollapseModule } from '@ng-bootstrap/ng-bootstrap';
 import { RouterLink } from '@angular/router';
-import { ProjectService, type Project, type Backbone, type GenerationJob } from '@core/services/project.service';
+import { ProjectService, type ProjectSummaryDto, type Backbone, type GenerationJob } from '@core/services/project.service';
 import { AddBackboneModal } from './components/add-backbone-modal/add-backbone-modal';
 import { AddGenerationJobModal } from './components/add-generation-job-modal/add-generation-job-modal';
 import { PdbViewerComponent } from './components/pdb-viewer/pdb-viewer';
@@ -32,11 +32,18 @@ export class ProjectDetail implements OnInit, OnDestroy {
   private projectService = inject(ProjectService);
   private toastr = inject(ToastrService);
 
-  project: Project | null = null;
+  project: ProjectSummaryDto | null = null;
   backbones: Backbone[] = [];
   generationJobs: GenerationJob[] = [];
   loading = true;
   error: string | null = null;
+
+  /** Target PDB (cargado por separado). */
+  targetContent: string | null = null;
+  loadingTarget = true;
+  /** Complex PDB (cargado por separado). */
+  complexContent: string | null = null;
+  loadingComplex = true;
 
   /** Project details card: false = expanded (content visible), true = collapsed (header only) */
   projectDetailsCollapsed = false;
@@ -47,6 +54,12 @@ export class ProjectDetail implements OnInit, OnDestroy {
 
   /** Selected generation job IDs (only completed runs can be selected). */
   selectedJobIds: number[] = [];
+  loadingConsolidateCsv = false;
+
+  /** PDB structure by backbone id (loaded on demand from GET .../backbones/{id}/structure). */
+  backboneStructures: Record<number, string> = {};
+  /** Backbone ids whose structure is currently loading. */
+  loadingBackboneStructure: Record<number, boolean> = {};
 
   private statusPollTimer: ReturnType<typeof setInterval> | null = null;
   private generationJobPollTimer: ReturnType<typeof setInterval> | null = null;
@@ -77,6 +90,7 @@ export class ProjectDetail implements OnInit, OnDestroy {
       next: (p) => {
         this.project = p;
         this.loading = false;
+        this.loadTargetAndComplex(id);
       },
       error: (err) => {
         this.error = err?.message || 'Failed to load project.';
@@ -85,14 +99,74 @@ export class ProjectDetail implements OnInit, OnDestroy {
     });
   }
 
+  /** Carga target y complex en paralelo (endpoints separados). */
+  private loadTargetAndComplex(projectId: number): void {
+    this.loadingTarget = true;
+    this.loadingComplex = true;
+    this.targetContent = null;
+    this.complexContent = null;
+    forkJoin({
+      target: this.projectService.getProjectTarget(projectId).pipe(catchError(() => of(''))),
+      complex: this.projectService.getProjectComplex(projectId).pipe(catchError(() => of(''))),
+    }).subscribe({
+      next: ({ target, complex }) => {
+        this.targetContent = target || null;
+        this.complexContent = complex || null;
+        this.loadingTarget = false;
+        this.loadingComplex = false;
+      },
+      error: () => {
+        this.loadingTarget = false;
+        this.loadingComplex = false;
+      },
+    });
+  }
+
   loadBackbones(projectId: number): void {
     this.projectService.getBackbones(projectId).subscribe({
       next: (list) => {
         this.backbones = list;
+        this.loadStructuresForCompletedBackbones();
       },
       error: (err) => {
         this.error = err?.message || 'Failed to load backbones.';
       },
+    });
+  }
+
+  private loadStructuresForCompletedBackbones(): void {
+    if (this.projectId == null) return;
+    for (const bb of this.backbones) {
+      if (bb.status === 'COMPLETED') this.loadBackboneStructure(bb);
+    }
+  }
+
+  private loadBackboneStructure(bb: Backbone): void {
+    if (this.projectId == null) return;
+    if (this.backboneStructures[bb.id] !== undefined || this.loadingBackboneStructure[bb.id]) return;
+    this.loadingBackboneStructure = { ...this.loadingBackboneStructure, [bb.id]: true };
+    this.projectService.getBackboneStructure(this.projectId, bb.id).subscribe({
+      next: (s) => {
+        this.backboneStructures = { ...this.backboneStructures, [bb.id]: s };
+        const { [bb.id]: _, ...rest } = this.loadingBackboneStructure;
+        this.loadingBackboneStructure = rest;
+      },
+      error: () => {
+        const { [bb.id]: __, ...rest } = this.loadingBackboneStructure;
+        this.loadingBackboneStructure = rest;
+      },
+    });
+  }
+
+  openBackbonePdbModal(bb: Backbone): void {
+    if (this.backboneStructures[bb.id]) {
+      this.openPdbModal(this.backboneStructures[bb.id], bb.name);
+      return;
+    }
+    if (!this.project) return;
+    this.projectService.getBackboneStructure(this.project.id, bb.id).subscribe({
+      next: (s) => this.openPdbModal(s, bb.name),
+      error: () => {},
     });
   }
 
@@ -261,6 +335,7 @@ export class ProjectDetail implements OnInit, OnDestroy {
     if (!this.project || this.selectedJobIds.length === 0) return;
     const selectedJobs = this.generationJobs.filter((j) => this.selectedJobIds.includes(j.id));
     if (selectedJobs.length === 0) return;
+    this.loadingConsolidateCsv = true;
     const projectId = this.project.id;
     forkJoin(
       selectedJobs.map((job) =>
@@ -270,6 +345,7 @@ export class ProjectDetail implements OnInit, OnDestroy {
       )
     ).subscribe({
       next: (csvs: string[]) => {
+        this.loadingConsolidateCsv = false;
         const lines: string[] = [];
         lines.push(ProjectDetail.CSV_HEADER);
         selectedJobs.forEach((job, i) => {
@@ -289,7 +365,7 @@ export class ProjectDetail implements OnInit, OnDestroy {
         a.click();
         URL.revokeObjectURL(url);
       },
-      error: () => {},
+      error: () => { this.loadingConsolidateCsv = false; },
     });
   }
 
@@ -311,15 +387,20 @@ export class ProjectDetail implements OnInit, OnDestroy {
   }
 
   downloadFasta(job: GenerationJob): void {
-    const fasta = job.fasta ?? '';
-    if (!fasta.trim()) return;
-    const blob = new Blob([fasta], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `job-${job.runId ?? job.id}.fasta`;
-    a.click();
-    URL.revokeObjectURL(url);
+    if (!this.project) return;
+    this.projectService.getGenerationJobFasta(this.project.id, job.id).subscribe({
+      next: (fasta) => {
+        if (!fasta?.trim()) return;
+        const blob = new Blob([fasta], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `job-${job.runId ?? job.id}.fasta`;
+        a.click();
+        URL.revokeObjectURL(url);
+      },
+      error: () => {},
+    });
   }
 
   openPdbModal(content: string | undefined, title: string): void {

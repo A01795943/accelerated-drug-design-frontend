@@ -3,10 +3,14 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { environment } from '@environment/environment';
 
-export interface Project {
+/** Resumen de proyecto (detalle rápido sin target/complex). */
+export interface ProjectSummaryDto {
   id: number;
   name: string;
   description?: string;
+}
+
+export interface Project extends ProjectSummaryDto {
   target?: string;
   complex?: string;
 }
@@ -52,17 +56,23 @@ export interface GenerationJob {
   numSeqs?: number;
   outputCsv?: string;
   fasta?: string;
-  /** Best PDB content (from generation_jobs.best_pdb). */
   bestPdb?: string;
-  /** Backbone id (from API when backbone is loaded). */
   backboneId?: number;
-  /** Backbone name (from API when backbone is loaded). */
   backboneName?: string;
   backbone?: Backbone;
-  /** Create datetime (ISO-8601 from API). */
   createdAt?: string;
-  /** Completed datetime (ISO-8601 from API). */
   completedAt?: string;
+}
+
+/** Detalle de job para pantalla (sin bestPdb, fasta; se obtienen por endpoints separados). */
+export interface GenerationJobDetailDto {
+  id: number;
+  runId?: string;
+  status?: string;
+  error?: string;
+  totalRecords?: number;
+  backboneId?: number;
+  backboneName?: string;
 }
 
 export interface GenerationJobRecord {
@@ -98,12 +108,20 @@ export class ProjectService {
   private readonly apiUrl = `${environment.apiUrl}/api/projects`;
   private readonly generateUrl = `${environment.apiUrl}/api/generate`;
 
-  getProjects(): Observable<Project[]> {
-    return this.http.get<Project[]>(this.apiUrl);
+  getProjects(): Observable<ProjectSummaryDto[]> {
+    return this.http.get<ProjectSummaryDto[]>(this.apiUrl);
   }
 
-  getProject(id: number): Observable<Project> {
-    return this.http.get<Project>(`${this.apiUrl}/${id}`);
+  getProject(id: number): Observable<ProjectSummaryDto> {
+    return this.http.get<ProjectSummaryDto>(`${this.apiUrl}/${id}`);
+  }
+
+  getProjectTarget(projectId: number): Observable<string> {
+    return this.http.get(`${this.apiUrl}/${projectId}/target`, { responseType: 'text' });
+  }
+
+  getProjectComplex(projectId: number): Observable<string> {
+    return this.http.get(`${this.apiUrl}/${projectId}/complex`, { responseType: 'text' });
   }
 
   createProject(request: CreateProjectRequest): Observable<Project> {
@@ -112,6 +130,11 @@ export class ProjectService {
 
   getBackbones(projectId: number): Observable<Backbone[]> {
     return this.http.get<Backbone[]>(`${this.apiUrl}/${projectId}/backbones`);
+  }
+
+  /** PDB structure of a backbone (text/plain). */
+  getBackboneStructure(projectId: number, backboneId: number): Observable<string> {
+    return this.http.get(`${this.apiUrl}/${projectId}/backbones/${backboneId}/structure`, { responseType: 'text' });
   }
 
   /** Check run status with core system and update backbones in DB. Returns updated list. */
@@ -127,24 +150,36 @@ export class ProjectService {
     return this.http.delete<void>(`${this.apiUrl}/${projectId}/backbones/${backboneId}`);
   }
 
-  generateContigs(): Observable<string> {
-    return this.http.get(this.generateUrl + '/contigs', { responseType: 'text' });
+  generateContigs(projectId: number): Observable<string> {
+    return this.http.get(this.generateUrl + '/contigs', { params: { projectId }, responseType: 'text' });
   }
 
-  generateHotspots(): Observable<string> {
-    return this.http.get(this.generateUrl + '/hotspots', { responseType: 'text' });
+  generateHotspots(projectId: number): Observable<string> {
+    return this.http.get(this.generateUrl + '/hotspots', { params: { projectId }, responseType: 'text' });
   }
 
-  generateChainsToRemove(): Observable<string> {
-    return this.http.get(this.generateUrl + '/chains-to-remove', { responseType: 'text' });
+  generateChainsToRemove(projectId: number): Observable<string> {
+    return this.http.get(this.generateUrl + '/chains-to-remove', { params: { projectId }, responseType: 'text' });
   }
 
   getGenerationJobs(projectId: number): Observable<GenerationJob[]> {
     return this.http.get<GenerationJob[]>(`${this.apiUrl}/${projectId}/generation-jobs`);
   }
 
-  getGenerationJob(projectId: number, jobId: number): Observable<GenerationJob> {
-    return this.http.get<GenerationJob>(`${this.apiUrl}/${projectId}/generation-jobs/${jobId}`);
+  getGenerationJob(projectId: number, jobId: number): Observable<GenerationJobDetailDto> {
+    return this.http.get<GenerationJobDetailDto>(`${this.apiUrl}/${projectId}/generation-jobs/${jobId}`);
+  }
+
+  getGenerationJobBestPdb(projectId: number, jobId: number): Observable<string> {
+    return this.http.get(`${this.apiUrl}/${projectId}/generation-jobs/${jobId}/best-pdb`, { responseType: 'text' });
+  }
+
+  getGenerationJobFasta(projectId: number, jobId: number): Observable<string> {
+    return this.http.get(`${this.apiUrl}/${projectId}/generation-jobs/${jobId}/fasta`, { responseType: 'text' });
+  }
+
+  getGenerationJobRecordPdb(projectId: number, jobId: number, n: number): Observable<string> {
+    return this.http.get(`${this.apiUrl}/${projectId}/generation-jobs/${jobId}/records/${n}/pdb`, { responseType: 'text' });
   }
 
   /**

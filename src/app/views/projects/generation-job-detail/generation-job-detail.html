@@ -60,11 +60,15 @@
 
         <!-- Top actions -->
         <div class="d-flex gap-2 mb-4 flex-wrap justify-content-end">
-          @if (job.bestPdb?.trim()) {
-            <button type="button" class="btn btn-outline-primary" (click)="openBestPdbModal()">Ver mejor PDB</button>
-          }
-          <button type="button" class="btn btn-outline-primary" (click)="downloadCsv()">Descargar CSV</button>
-          <button type="button" class="btn btn-outline-primary" (click)="openFastaModal()">Ver FASTA</button>
+          <button type="button" class="btn btn-outline-primary" (click)="openBestPdbModal()" [disabled]="loadingBestPdb">
+            {{ loadingBestPdb ? 'Cargando…' : 'Ver mejor PDB' }}
+          </button>
+          <button type="button" class="btn btn-outline-primary" (click)="downloadCsv()" [disabled]="loadingCsv">
+            {{ loadingCsv ? 'Cargando…' : 'Descargar CSV' }}
+          </button>
+          <button type="button" class="btn btn-outline-primary" (click)="openFastaModal()" [disabled]="loadingFasta">
+            {{ loadingFasta ? 'Cargando…' : 'Ver FASTA' }}
+          </button>
         </div>
 
         <!-- Records table -->
@@ -103,11 +107,9 @@
                         <td>{{ rec.iPae ?? '—' }}</td>
                         <td>{{ rec.rmsd != null ? (rec.rmsd | number:'1.2-2') : '—' }}</td>
                         <td>
-                          @if (rec.pdb) {
-                            <button type="button" class="btn btn-sm btn-outline-secondary" (click)="openPdbModal(rec.pdb, 'Record ' + rec.n)">Ver PDB</button>
-                          } @else {
-                            <span class="text-muted small">—</span>
-                          }
+                          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="openRecordPdbModal(rec)" [disabled]="loadingRecordPdbN === rec.n">
+                            {{ loadingRecordPdbN === rec.n ? 'Cargando' : 'Ver PDB' }}
+                          </button>
                         </td>
                       </tr>
                     }

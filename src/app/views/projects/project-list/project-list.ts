@@ -1,6 +1,6 @@
 import { Component, OnInit, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { ProjectService, type Project } from '@core/services/project.service';
+import { ProjectService, type ProjectSummaryDto } from '@core/services/project.service';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -12,7 +12,7 @@ import { CommonModule } from '@angular/common';
 })
 export class ProjectList implements OnInit {
   title = 'Projects';
-  projects: Project[] = [];
+  projects: ProjectSummaryDto[] = [];
   loading = true;
   error: string | null = null;
 
