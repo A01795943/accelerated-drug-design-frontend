@@ -67,6 +67,7 @@ export class GenerationJobDetail implements OnInit {
     mpnn: MetricStats;
     plddt: MetricStats;
     ptm: MetricStats;
+    iPtm: MetricStats;
     pae: MetricStats;
     iPae: MetricStats;
     rmsd: MetricStats;
@@ -74,7 +75,16 @@ export class GenerationJobDetail implements OnInit {
     const r = this.records;
     const empty: MetricStats = { min: null, max: null, promedio: null, media: null, desvEst: null, varianza: null };
     if (r.length === 0) {
-      return { count: 0, mpnn: { ...empty }, plddt: { ...empty }, ptm: { ...empty }, pae: { ...empty }, iPae: { ...empty }, rmsd: { ...empty } };
+      return {
+        count: 0,
+        mpnn: { ...empty },
+        plddt: { ...empty },
+        ptm: { ...empty },
+        iPtm: { ...empty },
+        pae: { ...empty },
+        iPae: { ...empty },
+        rmsd: { ...empty },
+      };
     }
     const num = (v: unknown): number | null => {
       if (typeof v === 'number' && !Number.isNaN(v)) return v;
@@ -84,6 +94,7 @@ export class GenerationJobDetail implements OnInit {
     const mpnnVals = r.map((x) => num(x.mpnn)).filter((v): v is number => v !== null);
     const plddtVals = r.map((x) => num(x.plddt)).filter((v): v is number => v !== null);
     const ptmVals = r.map((x) => num(x.ptm)).filter((v): v is number => v !== null);
+    const iPtmVals = r.map((x) => num(x.iPtm)).filter((v): v is number => v !== null);
     const paeVals = r.map((x) => num(x.pae)).filter((v): v is number => v !== null);
     const iPaeVals = r.map((x) => num(x.iPae)).filter((v): v is number => v !== null);
     const rmsdVals = r.map((x) => num(x.rmsd)).filter((v): v is number => v !== null);
@@ -92,6 +103,7 @@ export class GenerationJobDetail implements OnInit {
       mpnn: computeMetricStats(mpnnVals),
       plddt: computeMetricStats(plddtVals),
       ptm: computeMetricStats(ptmVals),
+      iPtm: computeMetricStats(iPtmVals),
       pae: computeMetricStats(paeVals),
       iPae: computeMetricStats(iPaeVals),
       rmsd: computeMetricStats(rmsdVals),
@@ -105,6 +117,7 @@ export class GenerationJobDetail implements OnInit {
       { key: 'mpnn', label: 'MPNN', stats: s.mpnn },
       { key: 'plddt', label: 'pLDDT', stats: s.plddt },
       { key: 'ptm', label: 'pTM', stats: s.ptm },
+      { key: 'iPtm', label: 'iPTM', stats: s.iPtm },
       { key: 'pae', label: 'PAE', stats: s.pae },
       { key: 'iPae', label: 'iPAE', stats: s.iPae },
       { key: 'rmsd', label: 'RMSD', stats: s.rmsd },

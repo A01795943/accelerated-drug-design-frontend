@@ -44,6 +44,7 @@ function statsFromRecords(records: GenerationJobRecord[]): {
   mpnn: MetricStats;
   plddt: MetricStats;
   ptm: MetricStats;
+  iPtm: MetricStats;
   pae: MetricStats;
   iPae: MetricStats;
   rmsd: MetricStats;
@@ -67,6 +68,7 @@ function statsFromRecords(records: GenerationJobRecord[]): {
   const mpnnVals = records.map((x) => num(x.mpnn)).filter((v): v is number => v !== null);
   const plddtVals = records.map((x) => num(x.plddt)).filter((v): v is number => v !== null);
   const ptmVals = records.map((x) => num(x.ptm)).filter((v): v is number => v !== null);
+  const iPtmVals = records.map((x) => num(x.iPtm)).filter((v): v is number => v !== null);
   const paeVals = records.map((x) => num(x.pae)).filter((v): v is number => v !== null);
   const iPaeVals = records.map((x) => num(x.iPae)).filter((v): v is number => v !== null);
   const rmsdVals = records.map((x) => num(x.rmsd)).filter((v): v is number => v !== null);
@@ -74,6 +76,7 @@ function statsFromRecords(records: GenerationJobRecord[]): {
     mpnn: computeMetricStats(mpnnVals),
     plddt: computeMetricStats(plddtVals),
     ptm: computeMetricStats(ptmVals),
+    iPtm: computeMetricStats(iPtmVals),
     pae: computeMetricStats(paeVals),
     iPae: computeMetricStats(iPaeVals),
     rmsd: computeMetricStats(rmsdVals),
@@ -82,11 +85,12 @@ function statsFromRecords(records: GenerationJobRecord[]): {
 
 const STAT_KEYS: (keyof MetricStats)[] = ['min', 'max', 'promedio', 'media', 'desvEst', 'varianza'];
 const STAT_LABELS = ['Mín', 'Máx', 'Promedio', 'Media', 'Desv. est.', 'Varianza'];
-const METRIC_KEYS = ['mpnn', 'plddt', 'ptm', 'pae', 'iPae', 'rmsd'] as const;
+const METRIC_KEYS = ['mpnn', 'plddt', 'ptm', 'iPtm', 'pae', 'iPae', 'rmsd'] as const;
 const METRIC_LABELS: Record<(typeof METRIC_KEYS)[number], string> = {
   mpnn: 'MPNN',
   plddt: 'pLDDT',
   ptm: 'pTM',
+  iPtm: 'iPTM',
   pae: 'PAE',
   iPae: 'iPAE',
   rmsd: 'RMSD',
@@ -110,7 +114,7 @@ export class MetricsCompare implements OnInit {
   /** Backbones by id (for run info: contigs, hotspots, chainsToRemove, iterations). */
   backbonesById = new Map<number, Backbone>();
   /** Per-job metric stats (same order as jobIds). */
-  jobsStats: { mpnn: MetricStats; plddt: MetricStats; ptm: MetricStats; pae: MetricStats; iPae: MetricStats; rmsd: MetricStats }[] = [];
+  jobsStats: { mpnn: MetricStats; plddt: MetricStats; ptm: MetricStats; iPtm: MetricStats; pae: MetricStats; iPae: MetricStats; rmsd: MetricStats }[] = [];
   loading = true;
   error: string | null = null;
 
