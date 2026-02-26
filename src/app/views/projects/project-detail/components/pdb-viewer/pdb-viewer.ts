@@ -89,6 +89,8 @@ declare global {
 export class PdbViewerComponent implements AfterViewInit, OnChanges {
   @Input() pdbContent: string | null | undefined = '';
   @Input() title = 'PDB';
+  /** Si true, muestra "Cargando" en lugar del contenido. */
+  @Input() loading = false;
   /** Height in pixels; default 400. Use a smaller value (e.g. 220) in cards. */
   @Input() height = 400;
 
@@ -106,7 +108,7 @@ export class PdbViewerComponent implements AfterViewInit, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['pdbContent']) {
+    if (changes['pdbContent'] || changes['loading']) {
       this.renderIfReady();
     }
   }
@@ -115,6 +117,11 @@ export class PdbViewerComponent implements AfterViewInit, OnChanges {
     if (!this.containerElement) return;
 
     this.clearViewer();
+
+    if (this.loading) {
+      this.containerElement.innerHTML = '<div class="pdb-viewer-placeholder">Cargando</div>';
+      return;
+    }
 
     const content = (this.pdbContent || '').trim();
     if (!content) {

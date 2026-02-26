@@ -40,7 +40,7 @@ export class AddBackboneModal {
 
   generateContigs(): void {
     this.generating.contigs = true;
-    this.projectService.generateContigs().subscribe({
+    this.projectService.generateContigs(this.projectId).subscribe({
       next: (value) => this.form.patchValue({ contigs: value }),
       error: () => this.toastr.error('Failed to generate contigs'),
       complete: () => (this.generating.contigs = false),
@@ -49,7 +49,7 @@ export class AddBackboneModal {
 
   generateHotspots(): void {
     this.generating.hotspots = true;
-    this.projectService.generateHotspots().subscribe({
+    this.projectService.generateHotspots(this.projectId).subscribe({
       next: (value) => this.form.patchValue({ hotspots: value }),
       error: () => this.toastr.error('Failed to generate hotspots'),
       complete: () => (this.generating.hotspots = false),
@@ -58,7 +58,7 @@ export class AddBackboneModal {
 
   generateChainsToRemove(): void {
     this.generating.chainsToRemove = true;
-    this.projectService.generateChainsToRemove().subscribe({
+    this.projectService.generateChainsToRemove(this.projectId).subscribe({
       next: (value) => this.form.patchValue({ chainsToRemove: value }),
       error: () => this.toastr.error('Failed to generate chains to remove'),
       complete: () => (this.generating.chainsToRemove = false),

@@ -35,20 +35,20 @@
             <div class="col-lg-6 mb-3">
               <div class="d-flex align-items-center gap-2 mb-1">
                 <label class="form-label text-muted small mb-0">Target</label>
-                <button type="button" class="btn btn-sm btn-outline-secondary" (click)="openPdbModal(project.target, 'Target')" title="Ver contenido PDB">
+                <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="loadingTarget" (click)="openPdbModal(targetContent ?? undefined, 'Target')" title="Ver contenido PDB">
                   Ver PDB
                 </button>
               </div>
-              <app-pdb-viewer [pdbContent]="project.target" title="Target"></app-pdb-viewer>
+              <app-pdb-viewer [pdbContent]="targetContent" [loading]="loadingTarget" title="Target"></app-pdb-viewer>
             </div>
             <div class="col-lg-6 mb-3">
               <div class="d-flex align-items-center gap-2 mb-1">
                 <label class="form-label text-muted small mb-0">Complex</label>
-                <button type="button" class="btn btn-sm btn-outline-secondary" (click)="openPdbModal(project.complex, 'Complex')" title="Ver contenido PDB">
+                <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="loadingComplex" (click)="openPdbModal(complexContent ?? undefined, 'Complex')" title="Ver contenido PDB">
                   Ver PDB
                 </button>
               </div>
-              <app-pdb-viewer [pdbContent]="project.complex" title="Complex"></app-pdb-viewer>
+              <app-pdb-viewer [pdbContent]="complexContent" [loading]="loadingComplex" title="Complex"></app-pdb-viewer>
             </div>
           </div>
         </div>
@@ -105,12 +105,17 @@
                             <dd class="d-inline ms-1 mb-0 text-truncate" [title]="bb.chainsToRemove || ''">{{ (bb.chainsToRemove || '—') | slice:0:60 }}{{ (bb.chainsToRemove?.length || 0) > 60 ? '…' : '' }}</dd>
                           </div>
                         </dl>
-                        @if (bb.status === 'COMPLETED' && bb.structure) {
+                        @if (bb.status === 'COMPLETED') {
                           <div class="mt-2">
                             <div class="mb-1">
-                              <button type="button" class="btn btn-sm btn-outline-secondary" (click)="openPdbModal(bb.structure, bb.name)">Ver PDB</button>
+                              <button type="button" class="btn btn-sm btn-outline-secondary" (click)="openBackbonePdbModal(bb)">Ver PDB</button>
                             </div>
-                            <app-pdb-viewer [pdbContent]="bb.structure" [title]="bb.name" [height]="220"></app-pdb-viewer>
+                            <app-pdb-viewer
+                              [pdbContent]="backboneStructures[bb.id]"
+                              [loading]="!!loadingBackboneStructure[bb.id]"
+                              [title]="bb.name"
+                              [height]="220"
+                            ></app-pdb-viewer>
                           </div>
                         } @else if (bb.status === 'ERROR' && bb.error) {
                           <div class="mt-2">
@@ -146,8 +151,8 @@
           <h4 class="card-title mb-0">Generación de datos sintéticos</h4>
           <div class="d-flex align-items-center gap-2">
             @if (selectedJobIds.length > 0) {
-              <button type="button" class="btn btn-sm btn-outline-primary" (click)="consolidateCsv()">
-                Consolidar CSVs
+              <button type="button" class="btn btn-sm btn-outline-primary" (click)="consolidateCsv()" [disabled]="loadingConsolidateCsv">
+                {{ loadingConsolidateCsv ? 'Cargando' : 'Consolidar CSVs' }}
               </button>
             }
             @if (selectedJobIds.length >= 2) {

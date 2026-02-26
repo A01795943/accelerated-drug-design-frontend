@@ -2,7 +2,7 @@ import { Component, OnInit, inject, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
-import { ProjectService, type GenerationJob, type GenerationJobRecord } from '@core/services/project.service';
+import { ProjectService, type GenerationJobDetailDto, type GenerationJobRecord } from '@core/services/project.service';
 import { PdbContentModal } from '../project-detail/components/pdb-content-modal/pdb-content-modal';
 
 export interface MetricStats {
@@ -52,10 +52,14 @@ export class GenerationJobDetail implements OnInit {
 
   projectId: number | null = null;
   jobId: number | null = null;
-  job: GenerationJob | null = null;
+  job: GenerationJobDetailDto | null = null;
   records: GenerationJobRecord[] = [];
   loading = true;
   error: string | null = null;
+  loadingBestPdb = false;
+  loadingFasta = false;
+  loadingRecordPdbN: number | null = null;
+  loadingCsv = false;
 
   /** Per-metric stats: min, max, promedio (mean), media (median), desvEst (std dev), varianza */
   get metricStats(): {
@@ -149,8 +153,10 @@ export class GenerationJobDetail implements OnInit {
 
   downloadCsv(): void {
     if (this.projectId == null || this.jobId == null || !this.job) return;
+    this.loadingCsv = true;
     this.projectService.getGenerationJobRecordsCsv(this.projectId, this.jobId).subscribe({
       next: (csv) => {
+        this.loadingCsv = false;
         if (!csv.trim()) return;
         const blob = new Blob([csv], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);
@@ -160,32 +166,44 @@ export class GenerationJobDetail implements OnInit {
         a.click();
         URL.revokeObjectURL(url);
       },
-      error: () => {},
+      error: () => { this.loadingCsv = false; },
     });
   }
 
   downloadFasta(): void {
-    const fasta = this.job?.fasta ?? '';
-    if (!fasta.trim()) return;
-    const blob = new Blob([fasta], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `job-${this.job?.runId ?? this.job?.id}.fasta`;
-    a.click();
-    URL.revokeObjectURL(url);
+    if (this.projectId == null || this.jobId == null || !this.job) return;
+    this.loadingFasta = true;
+    this.projectService.getGenerationJobFasta(this.projectId, this.jobId).subscribe({
+      next: (fasta) => {
+        this.loadingFasta = false;
+        if (!fasta?.trim()) return;
+        const blob = new Blob([fasta], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `job-${this.job?.runId ?? this.job?.id}.fasta`;
+        a.click();
+        URL.revokeObjectURL(url);
+      },
+      error: () => { this.loadingFasta = false; },
+    });
   }
 
   openFastaModal(): void {
-    const modalRef = this.modalService.open(PdbContentModal, {
-      fullscreen: true,
-      scrollable: true,
+    if (this.projectId == null || this.jobId == null) return;
+    this.loadingFasta = true;
+    this.projectService.getGenerationJobFasta(this.projectId, this.jobId).subscribe({
+      next: (fasta) => {
+        this.loadingFasta = false;
+        const modalRef = this.modalService.open(PdbContentModal, { fullscreen: true, scrollable: true });
+        const instance = modalRef.componentInstance as PdbContentModal;
+        instance.pdbContent = fasta ?? '';
+        instance.title = 'FASTA';
+        instance.showViewer = false;
+        instance.downloadExtension = 'fasta';
+      },
+      error: () => { this.loadingFasta = false; },
     });
-    const instance = modalRef.componentInstance as PdbContentModal;
-    instance.pdbContent = this.job?.fasta ?? '';
-    instance.title = 'FASTA';
-    instance.showViewer = false;
-    instance.downloadExtension = 'fasta';
   }
 
   openPdbModal(content: string | undefined, title: string): void {
@@ -197,18 +215,34 @@ export class GenerationJobDetail implements OnInit {
     (modalRef.componentInstance as PdbContentModal).title = title;
   }
 
-  /** Opens modal with best PDB (content + viewer tabs and download). */
+  /** Fetches best PDB from API and opens modal. */
   openBestPdbModal(): void {
-    const content = this.job?.bestPdb ?? '';
-    if (!content.trim()) return;
-    const modalRef = this.modalService.open(PdbContentModal, {
-      fullscreen: true,
-      scrollable: true,
+    if (this.projectId == null || this.jobId == null) return;
+    this.loadingBestPdb = true;
+    this.projectService.getGenerationJobBestPdb(this.projectId, this.jobId).subscribe({
+      next: (content) => {
+        this.loadingBestPdb = false;
+        const modalRef = this.modalService.open(PdbContentModal, { fullscreen: true, scrollable: true });
+        const instance = modalRef.componentInstance as PdbContentModal;
+        instance.pdbContent = content ?? '';
+        instance.title = 'Ver mejor PDB';
+        instance.showViewer = true;
+        instance.downloadExtension = 'pdb';
+      },
+      error: () => { this.loadingBestPdb = false; },
     });
-    const instance = modalRef.componentInstance as PdbContentModal;
-    instance.pdbContent = content;
-    instance.title = 'Ver mejor PDB';
-    instance.showViewer = true;
-    instance.downloadExtension = 'pdb';
+  }
+
+  /** Fetches record PDB from API and opens modal. */
+  openRecordPdbModal(rec: GenerationJobRecord): void {
+    if (this.projectId == null || this.jobId == null) return;
+    this.loadingRecordPdbN = rec.n;
+    this.projectService.getGenerationJobRecordPdb(this.projectId, this.jobId, rec.n).subscribe({
+      next: (content) => {
+        this.loadingRecordPdbN = null;
+        this.openPdbModal(content ?? '', 'Record ' + rec.n);
+      },
+      error: () => { this.loadingRecordPdbN = null; },
+    });
   }
 }
