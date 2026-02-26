@@ -89,6 +89,7 @@
                       <th>MPNN</th>
                       <th>pLDDT</th>
                       <th>pTM</th>
+                      <th>iPTM</th>
                       <th>PAE</th>
                       <th>iPAE</th>
                       <th>RMSD</th>
@@ -103,6 +104,7 @@
                         <td><span class="text-truncate d-inline-block small" style="max-width: 80px;" [title]="rec.mpnn">{{ rec.mpnn ?? '—' }}</span></td>
                         <td>{{ rec.plddt != null ? (rec.plddt | number:'1.2-2') : '—' }}</td>
                         <td>{{ rec.ptm != null ? (rec.ptm | number:'1.2-2') : '—' }}</td>
+                        <td>{{ rec.iPtm != null ? (rec.iPtm | number:'1.2-2') : '—' }}</td>
                         <td>{{ rec.pae ?? '—' }}</td>
                         <td>{{ rec.iPae ?? '—' }}</td>
                         <td>{{ rec.rmsd != null ? (rec.rmsd | number:'1.2-2') : '—' }}</td>
