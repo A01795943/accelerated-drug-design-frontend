@@ -102,6 +102,44 @@ export interface RecordsPageResponse {
   totalBatches: number;
 }
 
+/** EDA: distribution (histogram) response */
+export interface DistributionResponse {
+  columnName: string;
+  values: number[];
+  min: number | null;
+  max: number | null;
+}
+
+/** EDA: bins request body */
+export interface BinsRequest {
+  bins: number[];
+  labels: string[];
+}
+
+/** EDA: bins response */
+export interface BinsResponse {
+  columnName: string;
+  labels: string[];
+  counts: number[];
+  percentages: number[];
+}
+
+/** EDA: descriptive statistics for one metric */
+export interface DescriptiveStatsDto {
+  mean: number | null;
+  std: number | null;
+  min: number | null;
+  p25: number | null;
+  p50: number | null;
+  p75: number | null;
+  max: number | null;
+  skew: number | null;
+  kurtosis: number | null;
+}
+
+/** EDA: descriptive stats response (metric key -> stats) */
+export type DescriptiveStatsResponse = Record<string, DescriptiveStatsDto>;
+
 @Injectable({ providedIn: 'root' })
 export class ProjectService {
   private http = inject(HttpClient);
@@ -215,5 +253,34 @@ export class ProjectService {
 
   deleteGenerationJob(projectId: number, jobId: number): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/${projectId}/generation-jobs/${jobId}`);
+  }
+
+  /** EDA: descriptive statistics (mean, std, min, percentiles, max, skew, kurtosis) for all metrics. */
+  getEdaDescriptiveStats(projectId: number, jobId: number): Observable<DescriptiveStatsResponse> {
+    return this.http.get<DescriptiveStatsResponse>(
+      `${this.apiUrl}/${projectId}/generation-jobs/${jobId}/eda/descriptive-stats`
+    );
+  }
+
+  /** EDA: distribution data for a metric (values, min, max). */
+  getEdaDistribution(projectId: number, jobId: number, metric: string): Observable<DistributionResponse> {
+    return this.http.get<DistributionResponse>(
+      `${this.apiUrl}/${projectId}/generation-jobs/${jobId}/eda/distribution`,
+      { params: { metric } }
+    );
+  }
+
+  /** EDA: bins analysis for a metric. */
+  getEdaBins(
+    projectId: number,
+    jobId: number,
+    metric: string,
+    request: BinsRequest
+  ): Observable<BinsResponse> {
+    return this.http.post<BinsResponse>(
+      `${this.apiUrl}/${projectId}/generation-jobs/${jobId}/eda/bins`,
+      request,
+      { params: { metric } }
+    );
   }
 }

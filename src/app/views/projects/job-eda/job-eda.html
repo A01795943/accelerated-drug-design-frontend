@@ -1,0 +1,683 @@
+<div class="row">
+  <div class="col-xl-12">
+    @if (loading) {
+    <p class="text-muted">Cargando gráficas EDA…</p>
+    } @else if (error) {
+    <div class="alert alert-warning">{{ error }}</div>
+    } @else {
+    <div class="d-flex align-items-center gap-2 mb-4">
+      <a
+        [routerLink]="['/projects/detail', projectId, 'job', jobId]"
+        class="btn btn-sm btn-outline-secondary"
+        >← Volver al job</a
+      >
+      <h4 class="mb-0">EDA – Job {{ jobId }}</h4>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5 class="card-title mb-0">Estadísticas descriptivas</h5>
+      </div>
+      <div class="card-body p-0">
+        @if (descriptiveStats) {
+        <div class="table-responsive">
+          <table class="table table-bordered table-sm mb-0">
+            <thead class="table-light">
+              <tr>
+                <th></th>
+                @for (col of statsColumns; track col) {
+                <th class="text-center">{{ metricLabels[col] || col }}</th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of statsRows; track row.key) {
+              <tr>
+                <th class="text-nowrap">{{ row.label }}</th>
+                @for (col of statsColumns; track col) {
+                <td class="text-end font-monospace">
+                  {{ statCellValue(col, row.key) }}
+                  @if (row.key === 'cv' && cvBadgeLabel(col); as badge) {
+                    <span
+                      class="ms-2 badge" style="color: black"
+                      [class.bg-danger]="badge === 'Bajo'"
+                      [class.bg-warning]="badge === 'Medio'"
+                      [class.bg-success]="badge === 'Alto'"
+                    >{{ badge }}</span>
+                  }
+                </td>
+                }
+              </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        } @else if (descriptiveStatsError) {
+        <p class="text-muted mb-0 p-3">
+          No se pudieron cargar las estadísticas descriptivas.
+        </p>
+        } @else {
+        <p class="text-muted mb-0 p-3">Cargando estadísticas…</p>
+        }
+      </div>
+    </div>
+
+    <div class="row g-3">
+      @for (item of charts; track getChartId(item, $index)) {
+        @if (item.metric === 'ptm' && item.type === 'distribution') {
+          <div class="col-12 col-lg-6">
+            <div class="card mb-0 h-100">
+      <div class="card-header py-3">
+        <h5 class="card-title mb-0">pTM</h5>
+      </div>
+      <div class="card-body">
+          <div class="card mb-3 border-primary bg-primary bg-opacity-10">
+            <div class="card-header d-flex align-items-center justify-content-between gap-2 py-2" (click)="isPtmInfoCollapsed = !isPtmInfoCollapsed" style="cursor: pointer" role="button" [attr.aria-expanded]="!isPtmInfoCollapsed">
+              <span class="fw-semibold">Información</span>
+              <iconify-icon [icon]="isPtmInfoCollapsed ? 'solar:alt-arrow-down-bold' : 'solar:alt-arrow-up-bold'" class="fs-5"></iconify-icon>
+            </div>
+            <div [(ngbCollapse)]="isPtmInfoCollapsed" class="collapse">
+              <div class="card-body mpnn-info-body">
+              <h4 class="fw-semibold mb-2">¿Qué mide?</h4>
+              <p class="text-muted mb-3">Predicted TM-score global.</p>
+              <h4 class="fw-semibold mb-2">Rango posible</h4>
+              <p class="text-muted mb-3">0 – 1</p>
+              <h4 class="fw-semibold mb-2">Interpretación</h4>
+              <ul class="text-muted mb-0 ps-3">
+                <li>&gt;0.8 → Alta confianza estructural global</li>
+                <li>0.6–0.8 → Estructura plausible</li>
+                <li>&lt;0.6 → Baja confianza</li>
+                <li>
+                  Si la distribución es estrecha y alta → modelos similares y
+                  confiables.
+                </li>
+                <li>Si es amplia → dataset estructuralmente diverso.</li>
+              </ul>
+              </div>
+            </div>
+          </div>
+          <div class="card mb-3">
+            <div class="card-body">
+              <div
+                class="apex-charts"
+                [attr.id]="'chart-' + getChartId(item, $index)"
+              >
+                <apx-chart
+                  [chart]="item.options.chart!"
+                  [series]="item.options.series!"
+                  [xaxis]="item.options.xaxis!"
+                  [yaxis]="item.options.yaxis!"
+                  [plotOptions]="item.options.plotOptions!"
+                  [dataLabels]="item.options.dataLabels!"
+                  [stroke]="item.options.stroke!"
+                  [fill]="item.options.fill!"
+                  [colors]="item.options.colors!"
+                  [legend]="item.options.legend!"
+                  [grid]="item.options.grid!"
+                  [tooltip]="item.options.tooltip!"
+                  [title]="item.options.title!"
+                  [annotations]="item.options.annotations!"
+                />
+              </div>
+            </div>
+          </div>
+          @if (getPtmBinsChart(); as ptmBins) {
+          <div class="card mb-0">
+            <div class="card-body">
+              <div class="apex-charts" id="chart-ptm-bins">
+                <apx-chart
+                  [chart]="ptmBins.options.chart!"
+                  [series]="ptmBins.options.series!"
+                  [xaxis]="ptmBins.options.xaxis!"
+                  [yaxis]="ptmBins.options.yaxis!"
+                  [plotOptions]="ptmBins.options.plotOptions!"
+                  [dataLabels]="ptmBins.options.dataLabels!"
+                  [stroke]="ptmBins.options.stroke!"
+                  [fill]="ptmBins.options.fill!"
+                  [colors]="ptmBins.options.colors!"
+                  [legend]="ptmBins.options.legend!"
+                  [grid]="ptmBins.options.grid!"
+                  [tooltip]="ptmBins.options.tooltip!"
+                  [title]="ptmBins.options.title!"
+                  [annotations]="ptmBins.options.annotations!"
+                />
+              </div>
+            </div>
+          </div>
+          }
+        </div>
+    </div>
+          </div>
+        }
+        @if (item.metric === 'i_ptm' && item.type === 'distribution') {
+          <div class="col-12 col-lg-6">
+            <div class="card mb-0 h-100">
+      <div class="card-header py-3">
+        <h5 class="card-title mb-0">iPTM</h5>
+      </div>
+      <div class="card-body">
+          <div class="card mb-3 border-primary bg-primary bg-opacity-10">
+            <div class="card-header d-flex align-items-center justify-content-between gap-2 py-2" (click)="isIptmInfoCollapsed = !isIptmInfoCollapsed" style="cursor: pointer" role="button" [attr.aria-expanded]="!isIptmInfoCollapsed">
+              <span class="fw-semibold">Información</span>
+              <iconify-icon [icon]="isIptmInfoCollapsed ? 'solar:alt-arrow-down-bold' : 'solar:alt-arrow-up-bold'" class="fs-5"></iconify-icon>
+            </div>
+            <div [(ngbCollapse)]="isIptmInfoCollapsed" class="collapse">
+              <div class="card-body mpnn-info-body">
+              <h4 class="fw-semibold mb-2">¿Qué mide?</h4>
+              <p class="text-muted mb-3">
+                Interface predicted TM-score. Evalúa la calidad de la interfaz
+                proteína–proteína.
+              </p>
+              <h4 class="fw-semibold mb-2">Rango posible</h4>
+              <p class="text-muted mb-3">0 – 1</p>
+              <h4 class="fw-semibold mb-2">Interpretación</h4>
+              <ul class="text-muted mb-0 ps-3">
+                <li>&gt;0.8 → Interacción muy confiable</li>
+                <li>0.6–0.8 → Interacción plausible</li>
+                <li>&lt;0.6 → Interfaz incierta</li>
+                <li>
+                  Distribución amplia → variedad en calidad de interacciones.
+                </li>
+                <li>Distribución concentrada → comportamiento homogéneo.</li>
+              </ul>
+              </div>
+            </div>
+          </div>
+          <div class="card mb-3">
+            <div class="card-body">
+              <div
+                class="apex-charts"
+                [attr.id]="'chart-' + getChartId(item, $index)"
+              >
+                <apx-chart
+                  [chart]="item.options.chart!"
+                  [series]="item.options.series!"
+                  [xaxis]="item.options.xaxis!"
+                  [yaxis]="item.options.yaxis!"
+                  [plotOptions]="item.options.plotOptions!"
+                  [dataLabels]="item.options.dataLabels!"
+                  [stroke]="item.options.stroke!"
+                  [fill]="item.options.fill!"
+                  [colors]="item.options.colors!"
+                  [legend]="item.options.legend!"
+                  [grid]="item.options.grid!"
+                  [tooltip]="item.options.tooltip!"
+                  [title]="item.options.title!"
+                  [annotations]="item.options.annotations!"
+                />
+              </div>
+            </div>
+          </div>
+          @if (getIptmBinsChart(); as iptmBins) {
+          <div class="card mb-0">
+            <div class="card-body">
+              <div class="apex-charts" id="chart-iptm-bins">
+                <apx-chart
+                  [chart]="iptmBins.options.chart!"
+                  [series]="iptmBins.options.series!"
+                  [xaxis]="iptmBins.options.xaxis!"
+                  [yaxis]="iptmBins.options.yaxis!"
+                  [plotOptions]="iptmBins.options.plotOptions!"
+                  [dataLabels]="iptmBins.options.dataLabels!"
+                  [stroke]="iptmBins.options.stroke!"
+                  [fill]="iptmBins.options.fill!"
+                  [colors]="iptmBins.options.colors!"
+                  [legend]="iptmBins.options.legend!"
+                  [grid]="iptmBins.options.grid!"
+                  [tooltip]="iptmBins.options.tooltip!"
+                  [title]="iptmBins.options.title!"
+                  [annotations]="iptmBins.options.annotations!"
+                />
+              </div>
+            </div>
+          </div>
+          }
+        </div>
+    </div>
+          </div>
+        }
+        @if (item.metric === 'pae' && item.type === 'distribution') {
+          <div class="col-12 col-lg-6">
+            <div class="card mb-0 h-100">
+      <div class="card-header py-3">
+        <h5 class="card-title mb-0">PAE</h5>
+      </div>
+      <div class="card-body">
+          <div class="card mb-3 border-primary bg-primary bg-opacity-10">
+            <div class="card-header d-flex align-items-center justify-content-between gap-2 py-2" (click)="isPaeInfoCollapsed = !isPaeInfoCollapsed" style="cursor: pointer" role="button" [attr.aria-expanded]="!isPaeInfoCollapsed">
+              <span class="fw-semibold">Información</span>
+              <iconify-icon [icon]="isPaeInfoCollapsed ? 'solar:alt-arrow-down-bold' : 'solar:alt-arrow-up-bold'" class="fs-5"></iconify-icon>
+            </div>
+            <div [(ngbCollapse)]="isPaeInfoCollapsed" class="collapse">
+              <div class="card-body mpnn-info-body">
+              <h4 class="fw-semibold mb-2">¿Qué mide?</h4>
+              <p class="text-muted mb-3">
+                Predicted Aligned Error. Error esperado entre posiciones
+                alineadas.
+              </p>
+              <h4 class="fw-semibold mb-2">Rango típico</h4>
+              <p class="text-muted mb-3">0 – ~30 Å (puede variar).</p>
+              <h4 class="fw-semibold mb-2">Interpretación</h4>
+              <ul class="text-muted mb-0 ps-3">
+                <li>Valores bajos → alta precisión estructural</li>
+                <li>
+                  Valores altos → incertidumbre en la orientación relativa
+                </li>
+                <li>
+                  Distribución sesgada a la derecha → algunos modelos con
+                  errores grandes.
+                </li>
+                <li>
+                  Distribución concentrada en valores bajos → modelos precisos.
+                </li>
+              </ul>
+              </div>
+            </div>
+          </div>
+          <div class="card mb-3">
+            <div class="card-body">
+              <div
+                class="apex-charts"
+                [attr.id]="'chart-' + getChartId(item, $index)"
+              >
+                <apx-chart
+                  [chart]="item.options.chart!"
+                  [series]="item.options.series!"
+                  [xaxis]="item.options.xaxis!"
+                  [yaxis]="item.options.yaxis!"
+                  [plotOptions]="item.options.plotOptions!"
+                  [dataLabels]="item.options.dataLabels!"
+                  [stroke]="item.options.stroke!"
+                  [fill]="item.options.fill!"
+                  [colors]="item.options.colors!"
+                  [legend]="item.options.legend!"
+                  [grid]="item.options.grid!"
+                  [tooltip]="item.options.tooltip!"
+                  [title]="item.options.title!"
+                  [annotations]="item.options.annotations!"
+                />
+              </div>
+            </div>
+          </div>
+          @if (getPaeBinsChart(); as paeBins) {
+          <div class="card mb-0">
+            <div class="card-body">
+              <div class="apex-charts" id="chart-pae-bins">
+                <apx-chart
+                  [chart]="paeBins.options.chart!"
+                  [series]="paeBins.options.series!"
+                  [xaxis]="paeBins.options.xaxis!"
+                  [yaxis]="paeBins.options.yaxis!"
+                  [plotOptions]="paeBins.options.plotOptions!"
+                  [dataLabels]="paeBins.options.dataLabels!"
+                  [stroke]="paeBins.options.stroke!"
+                  [fill]="paeBins.options.fill!"
+                  [colors]="paeBins.options.colors!"
+                  [legend]="paeBins.options.legend!"
+                  [grid]="paeBins.options.grid!"
+                  [tooltip]="paeBins.options.tooltip!"
+                  [title]="paeBins.options.title!"
+                  [annotations]="paeBins.options.annotations!"
+                />
+              </div>
+            </div>
+          </div>
+          }
+        </div>
+    </div>
+          </div>
+        }
+        @if (item.metric === 'i_pae' && item.type === 'distribution') {
+          <div class="col-12 col-lg-6">
+            <div class="card mb-0 h-100">
+      <div class="card-header py-3">
+        <h5 class="card-title mb-0">iPAE</h5>
+      </div>
+      <div class="card-body">
+          <div class="card mb-3 border-primary bg-primary bg-opacity-10">
+            <div class="card-header d-flex align-items-center justify-content-between gap-2 py-2" (click)="isIpaeInfoCollapsed = !isIpaeInfoCollapsed" style="cursor: pointer" role="button" [attr.aria-expanded]="!isIpaeInfoCollapsed">
+              <span class="fw-semibold">Información</span>
+              <iconify-icon [icon]="isIpaeInfoCollapsed ? 'solar:alt-arrow-down-bold' : 'solar:alt-arrow-up-bold'" class="fs-5"></iconify-icon>
+            </div>
+            <div [(ngbCollapse)]="isIpaeInfoCollapsed" class="collapse">
+              <div class="card-body mpnn-info-body">
+              <h4 class="fw-semibold mb-2">¿Qué mide?</h4>
+              <p class="text-muted mb-3">PAE restringido a la interfaz.</p>
+              <h4 class="fw-semibold mb-2">Rango típico</h4>
+              <p class="text-muted mb-3">0 – ~30 Å</p>
+              <h4 class="fw-semibold mb-2">Interpretación</h4>
+              <ul class="text-muted mb-0 ps-3">
+                <li>Valores bajos → interfaz bien definida</li>
+                <li>Alta varianza → interfaces heterogéneas</li>
+                <li>Es complementaria a i_ptm.</li>
+              </ul>
+              </div>
+            </div>
+          </div>
+          <div class="card mb-3">
+            <div class="card-body">
+              <div
+                class="apex-charts"
+                [attr.id]="'chart-' + getChartId(item, $index)"
+              >
+                <apx-chart
+                  [chart]="item.options.chart!"
+                  [series]="item.options.series!"
+                  [xaxis]="item.options.xaxis!"
+                  [yaxis]="item.options.yaxis!"
+                  [plotOptions]="item.options.plotOptions!"
+                  [dataLabels]="item.options.dataLabels!"
+                  [stroke]="item.options.stroke!"
+                  [fill]="item.options.fill!"
+                  [colors]="item.options.colors!"
+                  [legend]="item.options.legend!"
+                  [grid]="item.options.grid!"
+                  [tooltip]="item.options.tooltip!"
+                  [title]="item.options.title!"
+                  [annotations]="item.options.annotations!"
+                />
+              </div>
+            </div>
+          </div>
+          @if (getIpaeBinsChart(); as ipaeBins) {
+          <div class="card mb-0">
+            <div class="card-body">
+              <div class="apex-charts" id="chart-ipae-bins">
+                <apx-chart
+                  [chart]="ipaeBins.options.chart!"
+                  [series]="ipaeBins.options.series!"
+                  [xaxis]="ipaeBins.options.xaxis!"
+                  [yaxis]="ipaeBins.options.yaxis!"
+                  [plotOptions]="ipaeBins.options.plotOptions!"
+                  [dataLabels]="ipaeBins.options.dataLabels!"
+                  [stroke]="ipaeBins.options.stroke!"
+                  [fill]="ipaeBins.options.fill!"
+                  [colors]="ipaeBins.options.colors!"
+                  [legend]="ipaeBins.options.legend!"
+                  [grid]="ipaeBins.options.grid!"
+                  [tooltip]="ipaeBins.options.tooltip!"
+                  [title]="ipaeBins.options.title!"
+                  [annotations]="ipaeBins.options.annotations!"
+                />
+              </div>
+            </div>
+          </div>
+          }
+        </div>
+    </div>
+          </div>
+        }
+        @if (item.metric === 'plddt' && item.type === 'distribution') {
+          <div class="col-12 col-lg-6">
+            <div class="card mb-0 h-100">
+      <div class="card-header py-3">
+        <h5 class="card-title mb-0">pLDDT</h5>
+      </div>
+      <div class="card-body">
+          <div class="card mb-3 border-primary bg-primary bg-opacity-10">
+            <div class="card-header d-flex align-items-center justify-content-between gap-2 py-2" (click)="isPlddtInfoCollapsed = !isPlddtInfoCollapsed" style="cursor: pointer" role="button" [attr.aria-expanded]="!isPlddtInfoCollapsed">
+              <span class="fw-semibold">Información</span>
+              <iconify-icon [icon]="isPlddtInfoCollapsed ? 'solar:alt-arrow-down-bold' : 'solar:alt-arrow-up-bold'" class="fs-5"></iconify-icon>
+            </div>
+            <div [(ngbCollapse)]="isPlddtInfoCollapsed" class="collapse">
+              <div class="card-body mpnn-info-body">
+              <h4 class="fw-semibold mb-2">¿Qué mide?</h4>
+              <p class="text-muted mb-3">
+                Predicted Local Distance Difference Test. Confianza local por
+                residuo en AlphaFold.
+              </p>
+              <h4 class="fw-semibold mb-2">Rango posible</h4>
+              <p class="text-muted mb-3">0 – 100</p>
+              <h4 class="fw-semibold mb-2">Interpretación</h4>
+              <ul class="text-muted mb-0 ps-3">
+                <li>&gt;90 → Muy alta confianza</li>
+                <li>70–90 → Buena confianza</li>
+                <li>&lt;70 → Baja confianza</li>
+                <li>
+                  Distribución concentrada en valores altos → modelos
+                  estructuralmente confiables.
+                </li>
+                <li>
+                  Distribución amplia → mezcla de regiones confiables e
+                  inciertas.
+                </li>
+              </ul>
+              </div>
+            </div>
+          </div>
+          <div class="card mb-3">
+            <div class="card-body">
+              <div
+                class="apex-charts"
+                [attr.id]="'chart-' + getChartId(item, $index)"
+              >
+                <apx-chart
+                  [chart]="item.options.chart!"
+                  [series]="item.options.series!"
+                  [xaxis]="item.options.xaxis!"
+                  [yaxis]="item.options.yaxis!"
+                  [plotOptions]="item.options.plotOptions!"
+                  [dataLabels]="item.options.dataLabels!"
+                  [stroke]="item.options.stroke!"
+                  [fill]="item.options.fill!"
+                  [colors]="item.options.colors!"
+                  [legend]="item.options.legend!"
+                  [grid]="item.options.grid!"
+                  [tooltip]="item.options.tooltip!"
+                  [title]="item.options.title!"
+                  [annotations]="item.options.annotations!"
+                />
+              </div>
+            </div>
+          </div>
+          @if (getPlddtBinsChart(); as plddtBins) {
+          <div class="card mb-0">
+            <div class="card-body">
+              <div class="apex-charts" id="chart-plddt-bins">
+                <apx-chart
+                  [chart]="plddtBins.options.chart!"
+                  [series]="plddtBins.options.series!"
+                  [xaxis]="plddtBins.options.xaxis!"
+                  [yaxis]="plddtBins.options.yaxis!"
+                  [plotOptions]="plddtBins.options.plotOptions!"
+                  [dataLabels]="plddtBins.options.dataLabels!"
+                  [stroke]="plddtBins.options.stroke!"
+                  [fill]="plddtBins.options.fill!"
+                  [colors]="plddtBins.options.colors!"
+                  [legend]="plddtBins.options.legend!"
+                  [grid]="plddtBins.options.grid!"
+                  [tooltip]="plddtBins.options.tooltip!"
+                  [title]="plddtBins.options.title!"
+                  [annotations]="plddtBins.options.annotations!"
+                />
+              </div>
+            </div>
+          </div>
+          }
+        </div>
+    </div>
+          </div>
+        }
+        @if (item.metric === 'rmsd' && item.type === 'distribution') {
+          <div class="col-12 col-lg-6">
+            <div class="card mb-0 h-100">
+      <div class="card-header py-3">
+        <h5 class="card-title mb-0">RMSD</h5>
+      </div>
+      <div class="card-body">
+          <div class="card mb-3 border-primary bg-primary bg-opacity-10">
+            <div class="card-header d-flex align-items-center justify-content-between gap-2 py-2" (click)="isRmsdInfoCollapsed = !isRmsdInfoCollapsed" style="cursor: pointer" role="button" [attr.aria-expanded]="!isRmsdInfoCollapsed">
+              <span class="fw-semibold">Información</span>
+              <iconify-icon [icon]="isRmsdInfoCollapsed ? 'solar:alt-arrow-down-bold' : 'solar:alt-arrow-up-bold'" class="fs-5"></iconify-icon>
+            </div>
+            <div [(ngbCollapse)]="isRmsdInfoCollapsed" class="collapse">
+              <div class="card-body mpnn-info-body">
+              <h4 class="fw-semibold mb-2">¿Qué mide?</h4>
+              <p class="text-muted mb-3">
+                Root Mean Square Deviation. Diferencia estructural respecto a
+                una referencia.
+              </p>
+              <h4 class="fw-semibold mb-2">Rango posible</h4>
+              <p class="text-muted mb-3">≥ 0 Å</p>
+              <h4 class="fw-semibold mb-2">Interpretación</h4>
+              <ul class="text-muted mb-0 ps-3">
+                <li>&lt;2 Å → Excelente ajuste</li>
+                <li>2–5 Å → Moderado</li>
+                <li>&gt;5 Å → Baja similitud estructural</li>
+                <li>Distribución amplia → alta diversidad estructural.</li>
+                <li>Distribución estrecha → modelos similares.</li>
+              </ul>
+              </div>
+            </div>
+          </div>
+          <div class="card mb-3">
+            <div class="card-body">
+              <div
+                class="apex-charts"
+                [attr.id]="'chart-' + getChartId(item, $index)"
+              >
+                <apx-chart
+                  [chart]="item.options.chart!"
+                  [series]="item.options.series!"
+                  [xaxis]="item.options.xaxis!"
+                  [yaxis]="item.options.yaxis!"
+                  [plotOptions]="item.options.plotOptions!"
+                  [dataLabels]="item.options.dataLabels!"
+                  [stroke]="item.options.stroke!"
+                  [fill]="item.options.fill!"
+                  [colors]="item.options.colors!"
+                  [legend]="item.options.legend!"
+                  [grid]="item.options.grid!"
+                  [tooltip]="item.options.tooltip!"
+                  [title]="item.options.title!"
+                  [annotations]="item.options.annotations!"
+                />
+              </div>
+            </div>
+          </div>
+          @if (getRmsdBinsChart(); as rmsdBins) {
+          <div class="card mb-0">
+            <div class="card-body">
+              <div class="apex-charts" id="chart-rmsd-bins">
+                <apx-chart
+                  [chart]="rmsdBins.options.chart!"
+                  [series]="rmsdBins.options.series!"
+                  [xaxis]="rmsdBins.options.xaxis!"
+                  [yaxis]="rmsdBins.options.yaxis!"
+                  [plotOptions]="rmsdBins.options.plotOptions!"
+                  [dataLabels]="rmsdBins.options.dataLabels!"
+                  [stroke]="rmsdBins.options.stroke!"
+                  [fill]="rmsdBins.options.fill!"
+                  [colors]="rmsdBins.options.colors!"
+                  [legend]="rmsdBins.options.legend!"
+                  [grid]="rmsdBins.options.grid!"
+                  [tooltip]="rmsdBins.options.tooltip!"
+                  [title]="rmsdBins.options.title!"
+                  [annotations]="rmsdBins.options.annotations!"
+                />
+              </div>
+            </div>
+          </div>
+          }
+        </div>
+    </div>
+          </div>
+        }
+        @if (item.metric === 'mpnn' && item.type === 'distribution') {
+          <div class="col-12 col-lg-6">
+            <div class="card mb-0 h-100">
+      <div class="card-header py-3">
+        <h5 class="card-title mb-0">MPNN</h5>
+      </div>
+      <div class="card-body">
+          <div class="card mb-3 border-primary bg-primary bg-opacity-10">
+            <div class="card-header d-flex align-items-center justify-content-between gap-2 py-2" (click)="isMpnnInfoCollapsed = !isMpnnInfoCollapsed" style="cursor: pointer" role="button" [attr.aria-expanded]="!isMpnnInfoCollapsed">
+              <span class="fw-semibold">Información</span>
+              <iconify-icon [icon]="isMpnnInfoCollapsed ? 'solar:alt-arrow-down-bold' : 'solar:alt-arrow-up-bold'" class="fs-5"></iconify-icon>
+            </div>
+            <div [(ngbCollapse)]="isMpnnInfoCollapsed" class="collapse">
+              <div class="card-body mpnn-info-body">
+              <h4 class="fw-semibold mb-2">¿Qué mide?</h4>
+              <p class="text-muted mb-3">
+                Score generado por ProteinMPNN. Generalmente representa una
+                energía o log-probabilidad del diseño de secuencia.
+              </p>
+              <h4 class="fw-semibold mb-2">Rango posible</h4>
+              <p class="text-muted mb-3">
+                No tiene un rango fijo universal. Puede tomar valores negativos.
+              </p>
+              <h4 class="fw-semibold mb-2">Interpretación</h4>
+              <ul class="text-muted mb-0 ps-3">
+                <li>
+                  Valores más bajos suelen indicar secuencias más favorables.
+                </li>
+                <li>Alta desviación estándar → mayor diversidad en diseños.</li>
+                <li>Distribución estrecha → diseños homogéneos.</li>
+                <li>
+                  Distribución amplia → alta variabilidad estructural o
+                  energética.
+                </li>
+              </ul>
+              </div>
+            </div>
+          </div>
+          <div class="card mb-0">
+            <div class="card-body">
+              <div
+                class="apex-charts"
+                [attr.id]="'chart-' + getChartId(item, $index)"
+              >
+                <apx-chart
+                  [chart]="item.options.chart!"
+                  [series]="item.options.series!"
+                  [xaxis]="item.options.xaxis!"
+                  [yaxis]="item.options.yaxis!"
+                  [plotOptions]="item.options.plotOptions!"
+                  [dataLabels]="item.options.dataLabels!"
+                  [stroke]="item.options.stroke!"
+                  [fill]="item.options.fill!"
+                  [colors]="item.options.colors!"
+                  [legend]="item.options.legend!"
+                  [grid]="item.options.grid!"
+                  [tooltip]="item.options.tooltip!"
+                  [title]="item.options.title!"
+                  [annotations]="item.options.annotations!"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+    </div>
+          </div>
+        }
+        @if (item.metric !== 'ptm' && item.metric !== 'i_ptm' && item.metric !== 'pae' && item.metric !== 'i_pae' && item.metric !== 'plddt' && item.metric !== 'rmsd' && item.metric !== 'mpnn') {
+          <div class="col-12 col-lg-6">
+            <div class="card mb-0 h-100">
+              <div class="card-body">
+                <div class="apex-charts" [attr.id]="'chart-' + getChartId(item, $index)">
+                  <apx-chart
+                    [chart]="item.options.chart!"
+                    [series]="item.options.series!"
+                    [xaxis]="item.options.xaxis!"
+                    [yaxis]="item.options.yaxis!"
+                    [plotOptions]="item.options.plotOptions!"
+                    [dataLabels]="item.options.dataLabels!"
+                    [stroke]="item.options.stroke!"
+                    [fill]="item.options.fill!"
+                    [colors]="item.options.colors!"
+                    [legend]="item.options.legend!"
+                    [grid]="item.options.grid!"
+                    [tooltip]="item.options.tooltip!"
+                    [title]="item.options.title!"
+                    [annotations]="item.options.annotations!"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+      }
+    </div>
+    }
+  </div>
+</div>
