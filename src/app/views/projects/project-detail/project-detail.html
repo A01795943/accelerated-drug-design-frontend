@@ -202,6 +202,8 @@
                       <th>Nº secuencias</th>
                       <th>Creado</th>
                       <th>Completado</th>
+                      <th>Tiempo transcurrido</th>
+                      <th>Calidad</th>
                       <th>Status</th>
                       <th>Acciones</th>
                     </tr>
@@ -232,6 +234,14 @@
                         <td>{{ job.numSeqs ?? '—' }}</td>
                         <td><span class="small">{{ job.createdAt ? (job.createdAt | date:'short') : '—' }}</span></td>
                         <td><span class="small">{{ job.completedAt ? (job.completedAt | date:'short') : '—' }}</span></td>
+                        <td><span class="small">{{ formatElapsed(job) }}</span></td>
+                        <td>
+                          @if (job.quality != null) {
+                            <span class="font-monospace">{{ (job.quality * 100) | number:'1.0-1' }}%</span>
+                          } @else {
+                            —
+                          }
+                        </td>
                         <td>
                           <span class="badge {{ job.status === 'COMPLETED' ? 'bg-success-subtle text-success' : (job.status === 'ERROR' ? 'bg-danger-subtle text-danger' : 'bg-primary-subtle text-primary') }}">{{ job.status ?? '—' }}</span>
                         </td>

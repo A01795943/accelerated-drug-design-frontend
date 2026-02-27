@@ -181,6 +181,23 @@ export class ProjectDetail implements OnInit, OnDestroy {
     });
   }
 
+  /** Tiempo transcurrido entre completedAt y createdAt (Completado - Creado). */
+  formatElapsed(job: GenerationJob): string {
+    if (!job.createdAt || !job.completedAt) return '—';
+    const created = new Date(job.createdAt).getTime();
+    const completed = new Date(job.completedAt).getTime();
+    if (completed < created) return '—';
+    const ms = completed - created;
+    const s = Math.floor(ms / 1000);
+    const m = Math.floor(s / 60);
+    const h = Math.floor(m / 60);
+    const d = Math.floor(h / 24);
+    if (d > 0) return `${d} d ${h % 24} h`;
+    if (h > 0) return `${h} h ${m % 60} min`;
+    if (m > 0) return `${m} min`;
+    return `${s} s`;
+  }
+
   isJobSelected(job: GenerationJob): boolean {
     return this.selectedJobIds.includes(job.id);
   }

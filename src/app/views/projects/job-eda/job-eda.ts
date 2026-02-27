@@ -2,11 +2,13 @@ import {
   Component,
   OnInit,
   inject,
+  ViewChild,
+  TemplateRef,
   CUSTOM_ELEMENTS_SCHEMA,
 } from '@angular/core'
 import { ActivatedRoute, RouterLink } from '@angular/router'
 import { CommonModule } from '@angular/common'
-import { NgbCollapseModule } from '@ng-bootstrap/ng-bootstrap'
+import { NgbModal, NgbModalModule } from '@ng-bootstrap/ng-bootstrap'
 import {
   ProjectService,
   type DescriptiveStatsResponse,
@@ -106,6 +108,7 @@ const STATS_ROWS: { key: string; label: string }[] = [
   { key: 'skew', label: 'Skew' },
   { key: 'kurtosis', label: 'Kurtosis' },
   { key: 'cv', label: 'CV (Coef. variación)' },
+  { key: 'quality', label: 'Quality' },
 ]
 
 /** Order: ptm, i_ptm, pae, i_pae, plddt, rmsd, mpnn (each distribution + bins when applicable). */
@@ -155,7 +158,7 @@ function buildHistogramBins(
 @Component({
   selector: 'app-job-eda',
   standalone: true,
-  imports: [CommonModule, RouterLink, NgApexchartsModule, NgbCollapseModule],
+  imports: [CommonModule, RouterLink, NgApexchartsModule, NgbModalModule],
   templateUrl: './job-eda.html',
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   styles: [
@@ -163,12 +166,60 @@ function buildHistogramBins(
       .mpnn-info-body {
         font-size: 1.05rem;
       }
+      .quality-metrics .formula {
+        background: var(--bs-light, #f8f9fa);
+        border: 1px solid var(--bs-border-color, #dee2e6);
+        border-radius: 0.375rem;
+        padding: 0.5rem 0.75rem;
+        margin: 0.5rem 0 1rem;
+        font-family: var(--bs-font-monospace);
+        font-size: 0.95rem;
+      }
+      .quality-metrics code {
+        background: rgba(0, 0, 0, 0.06);
+        padding: 0.15em 0.4em;
+        border-radius: 0.25rem;
+        font-size: 0.9em;
+      }
+      .dataset-quality {
+        font-size: 1.05rem;
+      }
+      .dataset-quality h2 {
+        font-size: 1.25rem;
+        margin-bottom: 1rem;
+      }
+      .dataset-quality h3 {
+        font-size: 1.1rem;
+        margin-top: 1.25rem;
+        margin-bottom: 0.5rem;
+      }
+      .dataset-quality .formula {
+        background: var(--bs-light, #f8f9fa);
+        border: 1px solid var(--bs-border-color, #dee2e6);
+        border-radius: 0.375rem;
+        padding: 0.5rem 0.75rem;
+        margin: 0.5rem 0 1rem;
+        font-family: var(--bs-font-monospace);
+        font-size: 0.95rem;
+      }
+      .dataset-quality code {
+        background: rgba(0, 0, 0, 0.06);
+        padding: 0.15em 0.4em;
+        border-radius: 0.25rem;
+        font-size: 0.9em;
+      }
+      .dataset-quality .weights-table {
+        margin: 0.5rem 0 1rem;
+      }
     `,
   ],
 })
 export class JobEda implements OnInit {
   private route = inject(ActivatedRoute)
   private projectService = inject(ProjectService)
+  private modal = inject(NgbModal)
+
+  @ViewChild('qualityInfoModal') private qualityInfoModalRef!: TemplateRef<unknown>
 
   projectId: number | null = null
   jobId: number | null = null
@@ -176,14 +227,9 @@ export class JobEda implements OnInit {
   error: string | null = null
   descriptiveStats: DescriptiveStatsResponse | null = null
   descriptiveStatsError = false
+  datasetQuality: number | null = null
+  datasetQualityError = false
   charts: ChartItem[] = []
-  isPtmInfoCollapsed = true
-  isIptmInfoCollapsed = true
-  isPaeInfoCollapsed = true
-  isIpaeInfoCollapsed = true
-  isPlddtInfoCollapsed = true
-  isRmsdInfoCollapsed = true
-  isMpnnInfoCollapsed = true
 
   readonly statsColumns = STATS_COLUMNS
   readonly statsRows = STATS_ROWS
@@ -200,6 +246,14 @@ export class JobEda implements OnInit {
       this.loading = false
       this.error = 'Faltan el ID del proyecto o del job.'
     }
+  }
+
+  openQualityInfoModal(): void {
+    this.modal.open(this.qualityInfoModalRef, { size: 'lg', scrollable: true })
+  }
+
+  openMetricInfoModal(content: TemplateRef<unknown>): void {
+    this.modal.open(content, { size: 'lg', scrollable: true })
   }
 
   load(): void {
@@ -226,6 +280,13 @@ export class JobEda implements OnInit {
       .subscribe({
         next: (stats) => (this.descriptiveStats = stats),
         error: () => (this.descriptiveStatsError = true),
+      })
+
+    this.projectService
+      .getEdaDatasetQuality(this.projectId!, this.jobId!)
+      .subscribe({
+        next: (res) => (this.datasetQuality = res.quality),
+        error: () => (this.datasetQualityError = true),
       })
 
     forkJoin([forkJoin(distRequests), forkJoin(binsRequests)]).subscribe({
@@ -467,6 +528,13 @@ export class JobEda implements OnInit {
       const cv = std / mean
       if (Number.isNaN(cv)) return '—'
       return (cv * 100).toFixed(2) + '%'
+    }
+    if (rowKey === 'quality') {
+      const v = (stats as unknown as Record<string, number | null | undefined>)['quality']
+      if (v == null || Number.isNaN(v)) return '—'
+      const num = typeof v === 'number' ? v : Number(v)
+      const pct = num <= 1 && num >= 0 ? num * 100 : num
+      return pct.toFixed(2) + '%'
     }
     const v = (stats as unknown as Record<string, number | null | undefined>)[rowKey]
     if (v == null || Number.isNaN(v)) return '—'

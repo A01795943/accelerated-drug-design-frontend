@@ -62,6 +62,8 @@ export interface GenerationJob {
   backbone?: Backbone;
   createdAt?: string;
   completedAt?: string;
+  /** Global dataset quality 0–1 (from EDA), only for completed jobs. */
+  quality?: number;
 }
 
 /** Detalle de job para pantalla (sin bestPdb, fasta; se obtienen por endpoints separados). */
@@ -253,6 +255,13 @@ export class ProjectService {
 
   deleteGenerationJob(projectId: number, jobId: number): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/${projectId}/generation-jobs/${jobId}`);
+  }
+
+  /** EDA: global dataset quality index (0–1). */
+  getEdaDatasetQuality(projectId: number, jobId: number): Observable<{ quality: number }> {
+    return this.http.get<{ quality: number }>(
+      `${this.apiUrl}/${projectId}/generation-jobs/${jobId}/eda/dataset-quality`
+    );
   }
 
   /** EDA: descriptive statistics (mean, std, min, percentiles, max, skew, kurtosis) for all metrics. */
