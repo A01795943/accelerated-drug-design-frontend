@@ -7,11 +7,20 @@
     } @else {
     <div class="d-flex align-items-center gap-2 mb-4">
       <a
-        [routerLink]="['/projects/detail', projectId, 'job', jobId]"
+        [routerLink]="['/projects/detail', projectId]"
         class="btn btn-sm btn-outline-secondary"
-        >← Volver al job</a
+        >← Volver al proyecto</a
       >
-      <h4 class="mb-0">EDA – Job {{ jobId }}</h4>
+      @if (jobId != null && jobIds.length === 0) {
+        <h4 class="mb-0">EDA – Job {{ jobId }}</h4>
+      } @else {
+        <h4 class="mb-0">
+          EDA – Jobs seleccionados
+          @if (jobIds.length > 0) {
+            <span class="text-muted small ms-1">({{ jobIds.join(', ') }})</span>
+          }
+        </h4>
+      }
     </div>
 
     <div class="row justify-content-center mb-3">

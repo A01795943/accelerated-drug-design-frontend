@@ -33,6 +33,11 @@ export const PROJECTS_ROUTES: Route[] = [
     data: { title: 'Comparar métricas' },
   },
   {
+    path: 'detail/:projectId/eda',
+    component: JobEda,
+    data: { title: 'EDA' },
+  },
+  {
     path: 'detail/:projectId/job/:jobId',
     component: GenerationJobDetail,
     data: { title: 'Job Detail' },

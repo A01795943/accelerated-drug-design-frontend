@@ -223,6 +223,7 @@ export class JobEda implements OnInit {
 
   projectId: number | null = null
   jobId: number | null = null
+  jobIds: number[] = []
   loading = true
   error: string | null = null
   descriptiveStats: DescriptiveStatsResponse | null = null
@@ -236,15 +237,30 @@ export class JobEda implements OnInit {
   readonly metricLabels = METRIC_LABELS
 
   ngOnInit(): void {
-    const pid = this.route.snapshot.paramMap.get('projectId')
-    const jid = this.route.snapshot.paramMap.get('jobId')
-    if (pid && jid) {
+    const paramMap = this.route.snapshot.paramMap
+    const queryMap = this.route.snapshot.queryParamMap
+    const pid = paramMap.get('projectId')
+    const jid = paramMap.get('jobId')
+    const jobIdsParam = queryMap.get('jobIds')
+
+    if (pid) {
       this.projectId = Number(pid)
+    }
+    if (jid) {
       this.jobId = Number(jid)
+    }
+    if (jobIdsParam) {
+      this.jobIds = jobIdsParam
+        .split(',')
+        .map((v) => Number(v.trim()))
+        .filter((n) => Number.isFinite(n))
+    }
+
+    if (this.projectId != null && (this.jobId != null || this.jobIds.length > 0)) {
       this.load()
     } else {
       this.loading = false
-      this.error = 'Faltan el ID del proyecto o del job.'
+      this.error = 'Faltan el ID del proyecto o de los jobs.'
     }
   }
 
@@ -257,37 +273,70 @@ export class JobEda implements OnInit {
   }
 
   load(): void {
-    if (this.projectId == null || this.jobId == null) return
+    if (this.projectId == null) return
+    const isMulti = this.jobIds.length > 0
+    if (!isMulti && this.jobId == null) return
     this.loading = true
     this.error = null
 
     const distRequests = DISTRIBUTION_METRICS.map((metric) =>
-      this.projectService.getEdaDistribution(
-        this.projectId!,
-        this.jobId!,
-        metric
-      )
+      isMulti
+        ? this.projectService.getEdaDistributionMulti(
+            this.projectId!,
+            this.jobIds,
+            metric
+          )
+        : this.projectService.getEdaDistribution(
+            this.projectId!,
+            this.jobId!,
+            metric
+          )
     )
     const binsRequests = BINS_CONFIG.map((cfg) =>
-      this.projectService.getEdaBins(this.projectId!, this.jobId!, cfg.metric, {
-        bins: cfg.bins,
-        labels: cfg.labels,
-      })
+      isMulti
+        ? this.projectService.getEdaBinsMulti(
+            this.projectId!,
+            this.jobIds,
+            cfg.metric,
+            {
+              bins: cfg.bins,
+              labels: cfg.labels,
+            }
+          )
+        : this.projectService.getEdaBins(
+            this.projectId!,
+            this.jobId!,
+            cfg.metric,
+            {
+              bins: cfg.bins,
+              labels: cfg.labels,
+            }
+          )
     )
 
-    this.projectService
-      .getEdaDescriptiveStats(this.projectId!, this.jobId!)
-      .subscribe({
-        next: (stats) => (this.descriptiveStats = stats),
-        error: () => (this.descriptiveStatsError = true),
-      })
+    const stats$ = isMulti
+      ? this.projectService.getEdaDescriptiveStatsMulti(
+          this.projectId!,
+          this.jobIds
+        )
+      : this.projectService.getEdaDescriptiveStats(this.projectId!, this.jobId!)
 
-    this.projectService
-      .getEdaDatasetQuality(this.projectId!, this.jobId!)
-      .subscribe({
-        next: (res) => (this.datasetQuality = res.quality),
-        error: () => (this.datasetQualityError = true),
-      })
+    stats$.subscribe({
+      next: (stats) => (this.descriptiveStats = stats),
+      error: () => (this.descriptiveStatsError = true),
+    })
+
+    const quality$ = isMulti
+      ? this.projectService.getEdaDatasetQualityMulti(
+          this.projectId!,
+          this.jobIds
+        )
+      : this.projectService.getEdaDatasetQuality(this.projectId!, this.jobId!)
+
+    quality$.subscribe({
+      next: (res) => (this.datasetQuality = res.quality),
+      error: () => (this.datasetQualityError = true),
+    })
 
     forkJoin([forkJoin(distRequests), forkJoin(binsRequests)]).subscribe({
       next: ([distResults, binsResults]) => {

@@ -64,6 +64,10 @@ export interface GenerationJob {
   completedAt?: string;
   /** Global dataset quality 0–1 (from EDA), only for completed jobs. */
   quality?: number;
+  /** Max pTM across records for this job. */
+  maxPtm?: number;
+  /** Max iPTM across records for this job. */
+  maxIPtm?: number;
 }
 
 /** Detalle de job para pantalla (sin bestPdb, fasta; se obtienen por endpoints separados). */
@@ -264,10 +268,28 @@ export class ProjectService {
     );
   }
 
+  /** EDA (multi-job): global dataset quality index (0–1) for combined jobs. */
+  getEdaDatasetQualityMulti(projectId: number, jobIds: number[]): Observable<{ quality: number }> {
+    const params = new HttpParams().set('jobIds', jobIds.join(','));
+    return this.http.get<{ quality: number }>(
+      `${this.apiUrl}/${projectId}/generation-jobs/eda/dataset-quality`,
+      { params }
+    );
+  }
+
   /** EDA: descriptive statistics (mean, std, min, percentiles, max, skew, kurtosis) for all metrics. */
   getEdaDescriptiveStats(projectId: number, jobId: number): Observable<DescriptiveStatsResponse> {
     return this.http.get<DescriptiveStatsResponse>(
       `${this.apiUrl}/${projectId}/generation-jobs/${jobId}/eda/descriptive-stats`
+    );
+  }
+
+  /** EDA (multi-job): descriptive statistics for all metrics using combined jobs. */
+  getEdaDescriptiveStatsMulti(projectId: number, jobIds: number[]): Observable<DescriptiveStatsResponse> {
+    const params = new HttpParams().set('jobIds', jobIds.join(','));
+    return this.http.get<DescriptiveStatsResponse>(
+      `${this.apiUrl}/${projectId}/generation-jobs/eda/descriptive-stats`,
+      { params }
     );
   }
 
@@ -276,6 +298,15 @@ export class ProjectService {
     return this.http.get<DistributionResponse>(
       `${this.apiUrl}/${projectId}/generation-jobs/${jobId}/eda/distribution`,
       { params: { metric } }
+    );
+  }
+
+  /** EDA (multi-job): distribution data for a metric using combined jobs. */
+  getEdaDistributionMulti(projectId: number, jobIds: number[], metric: string): Observable<DistributionResponse> {
+    const params = new HttpParams().set('metric', metric).set('jobIds', jobIds.join(','));
+    return this.http.get<DistributionResponse>(
+      `${this.apiUrl}/${projectId}/generation-jobs/eda/distribution`,
+      { params }
     );
   }
 
@@ -290,6 +321,21 @@ export class ProjectService {
       `${this.apiUrl}/${projectId}/generation-jobs/${jobId}/eda/bins`,
       request,
       { params: { metric } }
+    );
+  }
+
+  /** EDA (multi-job): bins analysis for a metric using combined jobs. */
+  getEdaBinsMulti(
+    projectId: number,
+    jobIds: number[],
+    metric: string,
+    request: BinsRequest
+  ): Observable<BinsResponse> {
+    const params = new HttpParams().set('metric', metric).set('jobIds', jobIds.join(','));
+    return this.http.post<BinsResponse>(
+      `${this.apiUrl}/${projectId}/generation-jobs/eda/bins`,
+      request,
+      { params }
     );
   }
 }
