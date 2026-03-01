@@ -7,7 +7,7 @@
     } @else if (project) {
       <!-- Project details card (collapsible) -->
       <div class="card mb-4">
-        <div class="card-header d-flex align-items-center justify-content-between gap-2 py-3 px-4">
+          <div class="card-header d-flex align-items-center justify-content-between gap-2 py-3 px-4">
           <h4 class="card-title mb-0">Detalles del proyecto</h4>
           <button
             type="button"
@@ -151,6 +151,9 @@
           <h4 class="card-title mb-0">Generación de datos sintéticos</h4>
           <div class="d-flex align-items-center gap-2">
             @if (selectedJobIds.length > 0) {
+              <button type="button" class="btn btn-sm btn-outline-primary" (click)="navigateToEdaMulti()">
+                EDA
+              </button>
               <button type="button" class="btn btn-sm btn-outline-primary" (click)="consolidateCsv()" [disabled]="loadingConsolidateCsv">
                 {{ loadingConsolidateCsv ? 'Cargando' : 'Consolidar CSVs' }}
               </button>
@@ -196,18 +199,72 @@
                           />
                         }
                       </th>
-                      <th>Run ID</th>
-                      <th>Backbone</th>
-                      <th>Temperatura</th>
-                      <th>Nº secuencias</th>
-                      <th>Creado</th>
-                      <th>Completado</th>
+                      <th (click)="changeSort('runId')" style="cursor: pointer;">
+                        Run ID
+                        @if (sortColumn === 'runId') {
+                          <span class="ms-1">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                        }
+                      </th>
+                      <th (click)="changeSort('backbone')" style="cursor: pointer;">
+                        Backbone
+                        @if (sortColumn === 'backbone') {
+                          <span class="ms-1">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                        }
+                      </th>
+                      <th (click)="changeSort('temperature')" style="cursor: pointer;">
+                        Temperatura
+                        @if (sortColumn === 'temperature') {
+                          <span class="ms-1">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                        }
+                      </th>
+                      <th (click)="changeSort('numSeqs')" style="cursor: pointer;">
+                        Nº secuencias
+                        @if (sortColumn === 'numSeqs') {
+                          <span class="ms-1">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                        }
+                      </th>
+                      <th (click)="changeSort('createdAt')" style="cursor: pointer;">
+                        Creado
+                        @if (sortColumn === 'createdAt') {
+                          <span class="ms-1">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                        }
+                      </th>
+                      <th (click)="changeSort('completedAt')" style="cursor: pointer;">
+                        Completado
+                        @if (sortColumn === 'completedAt') {
+                          <span class="ms-1">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                        }
+                      </th>
+                      <th (click)="changeSort('elapsed')" style="cursor: pointer;">
+                        Tiempo transcurrido
+                        @if (sortColumn === 'elapsed') {
+                          <span class="ms-1">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                        }
+                      </th>
+                      <th (click)="changeSort('maxPtm')" style="cursor: pointer;">
+                        Mx PTM
+                        @if (sortColumn === 'maxPtm') {
+                          <span class="ms-1">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                        }
+                      </th>
+                      <th (click)="changeSort('maxIPtm')" style="cursor: pointer;">
+                        Max iPTM
+                        @if (sortColumn === 'maxIPtm') {
+                          <span class="ms-1">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                        }
+                      </th>
+                      <th (click)="changeSort('quality')" style="cursor: pointer;">
+                        Calidad
+                        @if (sortColumn === 'quality') {
+                          <span class="ms-1">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                        }
+                      </th>
                       <th>Status</th>
                       <th>Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
-                    @for (job of generationJobs; track job.id) {
+                    @for (job of sortedGenerationJobs; track job.id) {
                       <tr>
                         <td class="text-center" style="width: 2.5rem;">
                           <input
@@ -232,6 +289,28 @@
                         <td>{{ job.numSeqs ?? '—' }}</td>
                         <td><span class="small">{{ job.createdAt ? (job.createdAt | date:'short') : '—' }}</span></td>
                         <td><span class="small">{{ job.completedAt ? (job.completedAt | date:'short') : '—' }}</span></td>
+                        <td><span class="small">{{ formatElapsed(job) }}</span></td>
+                        <td>
+                          @if (job.maxPtm != null) {
+                            <span class="small font-monospace">{{ job.maxPtm | number:'1.3-3' }}</span>
+                          } @else {
+                            —
+                          }
+                        </td>
+                        <td>
+                          @if (job.maxIPtm != null) {
+                            <span class="small font-monospace">{{ job.maxIPtm | number:'1.3-3' }}</span>
+                          } @else {
+                            —
+                          }
+                        </td>
+                        <td>
+                          @if (job.quality != null) {
+                            <span class="font-monospace">{{ (job.quality * 100) | number:'1.0-1' }}%</span>
+                          } @else {
+                            —
+                          }
+                        </td>
                         <td>
                           <span class="badge {{ job.status === 'COMPLETED' ? 'bg-success-subtle text-success' : (job.status === 'ERROR' ? 'bg-danger-subtle text-danger' : 'bg-primary-subtle text-primary') }}">{{ job.status ?? '—' }}</span>
                         </td>

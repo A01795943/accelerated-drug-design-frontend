@@ -38,6 +38,10 @@ export class ProjectDetail implements OnInit, OnDestroy {
   loading = true;
   error: string | null = null;
 
+  /** Sorting state for generation jobs table. */
+  sortColumn: 'runId' | 'backbone' | 'temperature' | 'numSeqs' | 'createdAt' | 'completedAt' | 'elapsed' | 'quality' | 'maxPtm' | 'maxIPtm' | null = null;
+  sortDirection: 'asc' | 'desc' = 'asc';
+
   /** Target PDB (cargado por separado). */
   targetContent: string | null = null;
   loadingTarget = true;
@@ -179,6 +183,115 @@ export class ProjectDetail implements OnInit, OnDestroy {
         this.error = err?.message || 'Failed to load generation jobs.';
       },
     });
+  }
+
+  /** Sorted view of generation jobs according to current sort state. */
+  get sortedGenerationJobs(): GenerationJob[] {
+    const jobs = [...this.generationJobs];
+    if (!this.sortColumn) return jobs;
+    return jobs.sort((a, b) => this.compareJobs(a, b));
+  }
+
+  changeSort(column: 'runId' | 'backbone' | 'temperature' | 'numSeqs' | 'createdAt' | 'completedAt' | 'elapsed' | 'quality' | 'maxPtm' | 'maxIPtm'): void {
+    if (this.sortColumn === column) {
+      this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      this.sortColumn = column;
+      this.sortDirection = 'asc';
+    }
+  }
+
+  private compareJobs(a: GenerationJob, b: GenerationJob): number {
+    const dir = this.sortDirection === 'asc' ? 1 : -1;
+    switch (this.sortColumn) {
+      case 'runId': {
+        const av = a.runId ?? '';
+        const bv = b.runId ?? '';
+        return av.localeCompare(bv) * dir;
+      }
+      case 'backbone': {
+        const av = a.backboneName ?? '';
+        const bv = b.backboneName ?? '';
+        return av.localeCompare(bv) * dir;
+      }
+      case 'temperature': {
+        const av = a.temperature ?? Number.NaN;
+        const bv = b.temperature ?? Number.NaN;
+        return this.compareNullableNumber(av, bv, dir);
+      }
+      case 'numSeqs': {
+        const av = a.numSeqs ?? Number.NaN;
+        const bv = b.numSeqs ?? Number.NaN;
+        return this.compareNullableNumber(av, bv, dir);
+      }
+      case 'createdAt': {
+        const av = a.createdAt ? new Date(a.createdAt).getTime() : Number.NaN;
+        const bv = b.createdAt ? new Date(b.createdAt).getTime() : Number.NaN;
+        return this.compareNullableNumber(av, bv, dir);
+      }
+      case 'completedAt': {
+        const av = a.completedAt ? new Date(a.completedAt).getTime() : Number.NaN;
+        const bv = b.completedAt ? new Date(b.completedAt).getTime() : Number.NaN;
+        return this.compareNullableNumber(av, bv, dir);
+      }
+      case 'elapsed': {
+        const av = this.getElapsedMs(a) ?? Number.NaN;
+        const bv = this.getElapsedMs(b) ?? Number.NaN;
+        return this.compareNullableNumber(av, bv, dir);
+      }
+      case 'quality': {
+        const av = typeof a.quality === 'number' ? a.quality : Number.NaN;
+        const bv = typeof b.quality === 'number' ? b.quality : Number.NaN;
+        return this.compareNullableNumber(av, bv, dir);
+      }
+      case 'maxPtm': {
+        const av = typeof a.maxPtm === 'number' ? a.maxPtm : Number.NaN;
+        const bv = typeof b.maxPtm === 'number' ? b.maxPtm : Number.NaN;
+        return this.compareNullableNumber(av, bv, dir);
+      }
+      case 'maxIPtm': {
+        const av = typeof a.maxIPtm === 'number' ? a.maxIPtm : Number.NaN;
+        const bv = typeof b.maxIPtm === 'number' ? b.maxIPtm : Number.NaN;
+        return this.compareNullableNumber(av, bv, dir);
+      }
+      default:
+        return 0;
+    }
+  }
+
+  private compareNullableNumber(aVal: number, bVal: number, dir: number): number {
+    const aMissing = Number.isNaN(aVal);
+    const bMissing = Number.isNaN(bVal);
+    if (aMissing && bMissing) return 0;
+    if (aMissing) return 1; // valores nulos/NaN al final
+    if (bMissing) return -1;
+    if (aVal === bVal) return 0;
+    return aVal < bVal ? -1 * dir : 1 * dir;
+  }
+
+  private getElapsedMs(job: GenerationJob): number | null {
+    if (!job.createdAt || !job.completedAt) return null;
+    const created = new Date(job.createdAt).getTime();
+    const completed = new Date(job.completedAt).getTime();
+    if (!Number.isFinite(created) || !Number.isFinite(completed) || completed < created) return null;
+    return completed - created;
+  }
+
+  /** Tiempo transcurrido entre completedAt y createdAt (Completado - Creado). */
+  formatElapsed(job: GenerationJob): string {
+    if (!job.createdAt || !job.completedAt) return '—';
+    const created = new Date(job.createdAt).getTime();
+    const completed = new Date(job.completedAt).getTime();
+    if (completed < created) return '—';
+    const ms = completed - created;
+    const s = Math.floor(ms / 1000);
+    const m = Math.floor(s / 60);
+    const h = Math.floor(m / 60);
+    const d = Math.floor(h / 24);
+    if (d > 0) return `${d} d ${h % 24} h`;
+    if (h > 0) return `${h} h ${m % 60} min`;
+    if (m > 0) return `${m} min`;
+    return `${s} s`;
   }
 
   isJobSelected(job: GenerationJob): boolean {
@@ -328,6 +441,13 @@ export class ProjectDetail implements OnInit, OnDestroy {
     if (!this.project || this.selectedJobIds.length < 2) return;
     const jobIds = this.selectedJobIds.join(',');
     this.router.navigate(['/projects/detail', this.project.id, 'compare'], { queryParams: { jobIds } });
+  }
+
+  /** Navigate to EDA page using all selected jobs as a combined dataset. */
+  navigateToEdaMulti(): void {
+    if (!this.project || this.selectedJobIds.length === 0) return;
+    const jobIds = this.selectedJobIds.join(',');
+    this.router.navigate(['/projects/detail', this.project.id, 'eda'], { queryParams: { jobIds } });
   }
 
   /** Fetch CSVs for selected runs and download one consolidated file (same columns as single-job CSV). */

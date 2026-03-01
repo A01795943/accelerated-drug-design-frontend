@@ -60,6 +60,7 @@
 
         <!-- Top actions -->
         <div class="d-flex gap-2 mb-4 flex-wrap justify-content-end">
+          <a [routerLink]="['/projects/detail', projectId, 'job', jobId, 'eda']" class="btn btn-outline-primary">EDA</a>
           <button type="button" class="btn btn-outline-primary" (click)="openBestPdbModal()" [disabled]="loadingBestPdb">
             {{ loadingBestPdb ? 'Cargando…' : 'Ver mejor PDB' }}
           </button>
