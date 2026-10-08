@@ -1,0 +1,232 @@
+<div class="row">
+  <div class="col-xl-12">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center gap-1">
+        <h4 class="card-title flex-grow-1 mb-0">Instancias del core</h4>
+        <button type="button" class="btn btn-sm btn-primary" (click)="openCreate()">
+          Nueva instancia
+        </button>
+      </div>
+      <div class="card-body">
+        @if (loading) {
+          <p class="text-muted mb-0">Cargando instancias…</p>
+        } @else if (error) {
+          <div class="alert alert-warning mb-0">{{ error }}</div>
+        } @else {
+          @if (actionError) {
+            <div class="alert alert-danger">{{ actionError }}</div>
+          }
+          @if (instances.length === 0) {
+            <div class="text-center py-5">
+              <p class="text-muted mb-3">Aún no hay instancias del core.</p>
+              <button type="button" class="btn btn-primary" (click)="openCreate()">
+                Dar de alta la primera
+              </button>
+            </div>
+          } @else {
+            <div class="table-responsive">
+              <table class="table align-middle mb-0 table-hover table-centered">
+                <thead class="bg-light-subtle">
+                  <tr>
+                    <th>Nombre</th>
+                    <th>Base URL</th>
+                    <th>Salud</th>
+                    <th>Ocupación</th>
+                    <th>Estado</th>
+                    <th>Horario</th>
+                    <th class="text-end">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (instance of instances; track instance.id) {
+                    <tr>
+                      <td class="fw-medium">{{ instance.name }}</td>
+                      <td><code>{{ instance.baseUrl }}</code></td>
+                      <td>
+                        <span class="badge {{ healthBadgeClass(instance.healthState) }}">
+                          {{ instance.healthState || 'UNKNOWN' }}
+                        </span>
+                      </td>
+                      <td>
+                        @if (isBusy(instance)) {
+                          <span class="badge bg-warning-subtle text-warning" [ngbTooltip]="instance.currentRunId">
+                            Ocupada
+                          </span>
+                        } @else {
+                          <span class="badge bg-success-subtle text-success">Libre</span>
+                        }
+                      </td>
+                      <td>
+                        <span class="badge {{ instance.enabled ? 'bg-success-subtle text-success' : 'bg-secondary-subtle text-secondary' }}">
+                          {{ instance.enabled ? 'Habilitada' : 'Deshabilitada' }}
+                        </span>
+                      </td>
+                      <td>
+                        @if (instance.restrictSchedule) {
+                          <span class="badge bg-info-subtle text-info">Ventanas</span>
+                        } @else {
+                          <span class="text-muted">Siempre disponible</span>
+                        }
+                      </td>
+                      <td class="text-end">
+                        <div class="d-flex justify-content-end gap-1 flex-wrap">
+                          <button type="button" class="btn btn-sm btn-soft-primary" (click)="openEdit(instance)">
+                            Editar
+                          </button>
+                          <button type="button" class="btn btn-sm btn-soft-secondary" (click)="toggleEnabled(instance)">
+                            {{ instance.enabled ? 'Deshabilitar' : 'Habilitar' }}
+                          </button>
+                          <button type="button" class="btn btn-sm btn-soft-danger" (click)="deleteInstance(instance)">
+                            Eliminar
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        }
+      </div>
+    </div>
+  </div>
+</div>
+
+@if (formOpen) {
+  <div class="modal d-block bg-dark bg-opacity-50" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">{{ editing ? 'Editar instancia' : 'Nueva instancia' }}</h5>
+          <button type="button" class="btn-close" aria-label="Close" (click)="closeForm()"></button>
+        </div>
+        <form [formGroup]="form" (ngSubmit)="submitForm()">
+          <div class="modal-body">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label" for="instance-name">Nombre</label>
+                <input type="text" class="form-control" id="instance-name" formControlName="name" placeholder="core-lab" />
+                @if (form.get('name')?.invalid && form.get('name')?.touched) {
+                  <div class="text-danger small">El nombre es obligatorio</div>
+                }
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="instance-url">Base URL</label>
+                <input type="url" class="form-control" id="instance-url" formControlName="baseUrl" placeholder="http://100.x.x.x:8000" />
+                @if (form.get('baseUrl')?.invalid && form.get('baseUrl')?.touched) {
+                  <div class="text-danger small">La URL es obligatoria</div>
+                }
+                <div class="form-text">Solo hosts privados, loopback o Tailscale (100.64.0.0/10).</div>
+              </div>
+              <div class="col-md-6">
+                <div class="form-check form-switch mt-1">
+                  <input class="form-check-input" type="checkbox" id="instance-enabled" formControlName="enabled" />
+                  <label class="form-check-label" for="instance-enabled">Habilitada</label>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="form-check form-switch mt-1">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    id="instance-restrict"
+                    formControlName="restrictSchedule"
+                    ngbTooltip="En temporada vacacional desmarca este interruptor: la instancia queda siempre disponible (restrictSchedule=false) sin borrar las ventanas."
+                    placement="left"
+                  />
+                  <label class="form-check-label" for="instance-restrict">
+                    Restringir por horario
+                    <iconify-icon icon="solar:info-circle-bold-duotone" class="align-middle text-muted"></iconify-icon>
+                  </label>
+                </div>
+                <div class="form-text">
+                  Desmarcado = siempre disponible (p. ej. vacaciones). No hace falta una pantalla aparte.
+                </div>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label" for="instance-margin">Margen máx. (minutos)</label>
+                <input type="number" min="0" class="form-control" id="instance-margin" formControlName="maxJobMinutes" placeholder="Opcional" />
+                <div class="form-text">No despachar si el job no cabe en lo que resta de ventana.</div>
+              </div>
+            </div>
+
+            <button type="button" class="btn btn-link btn-sm px-0 mt-3" (click)="showAdvanced = !showAdvanced">
+              {{ showAdvanced ? 'Ocultar opciones avanzadas' : 'Timeouts avanzados (opcional)' }}
+            </button>
+            @if (showAdvanced) {
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label" for="instance-connect">Connect timeout (ms)</label>
+                  <input type="number" min="0" class="form-control" id="instance-connect" formControlName="connectTimeoutMs" placeholder="Por defecto de app.core" />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label" for="instance-read">Read timeout (ms)</label>
+                  <input type="number" min="0" class="form-control" id="instance-read" formControlName="readTimeoutMs" placeholder="Por defecto de app.core" />
+                </div>
+              </div>
+            }
+
+            @if (restrictSchedule) {
+              <hr />
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="mb-0">Ventanas de disponibilidad</h6>
+                <button type="button" class="btn btn-sm btn-soft-primary" (click)="addWindow()">Agregar fila</button>
+              </div>
+              <p class="text-muted small mb-2">
+                Día 1=Lun … 7=Dom. Franja completa: 00:00–23:59. Si inicio &gt; fin, la ventana cruza medianoche.
+              </p>
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <thead class="bg-light-subtle">
+                    <tr>
+                      <th>Día</th>
+                      <th>Inicio</th>
+                      <th>Fin</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody formArrayName="windows">
+                    @for (row of windows.controls; track $index; let i = $index) {
+                      <tr [formGroupName]="i">
+                        <td>
+                          <select class="form-select form-select-sm" formControlName="dayOfWeek">
+                            @for (day of days; track day.value) {
+                              <option [ngValue]="day.value">{{ day.label }}</option>
+                            }
+                          </select>
+                        </td>
+                        <td>
+                          <input type="time" class="form-control form-control-sm" formControlName="startTime" />
+                        </td>
+                        <td>
+                          <input type="time" class="form-control form-control-sm" formControlName="endTime" />
+                        </td>
+                        <td class="text-end">
+                          <button type="button" class="btn btn-sm btn-soft-danger" (click)="removeWindow(i)" [disabled]="windows.length === 1">
+                            Quitar
+                          </button>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+
+            @if (formError) {
+              <div class="alert alert-danger py-2 mt-3 mb-0">{{ formError }}</div>
+            }
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-soft-secondary" (click)="closeForm()">Cancelar</button>
+            <button type="submit" class="btn btn-primary" [disabled]="form.invalid || formLoading">
+              {{ formLoading ? 'Guardando…' : (editing ? 'Guardar cambios' : 'Crear') }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="modal-backdrop fade show"></div>
+}

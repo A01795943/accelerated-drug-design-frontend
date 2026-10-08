@@ -1,9 +1,11 @@
-import { Component, OnInit, OnDestroy, inject, CUSTOM_ELEMENTS_SCHEMA, ViewChild, TemplateRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, CUSTOM_ELEMENTS_SCHEMA, ViewChild, TemplateRef, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { NgbModal, NgbModalRef, NgbCollapseModule } from '@ng-bootstrap/ng-bootstrap';
 import { RouterLink } from '@angular/router';
 import { ProjectService, type ProjectSummaryDto, type Backbone, type GenerationJob } from '@core/services/project.service';
+import { isInFlightRunStatus, runStatusBadgeClass, runStatusLabel } from '@core/run-status';
+import { CampaignsTable } from '@views/projects/detail/campaigns-table/campaigns-table';
 import { AddBackboneModal } from './components/add-backbone-modal/add-backbone-modal';
 import { AddGenerationJobModal } from './components/add-generation-job-modal/add-generation-job-modal';
 import { PdbViewerComponent } from './components/pdb-viewer/pdb-viewer';
@@ -17,7 +19,7 @@ const POLL_INTERVAL_MS = 60_000; // 1 minute
 @Component({
   selector: 'app-project-detail',
   standalone: true,
-  imports: [CommonModule, PdbViewerComponent, NgbCollapseModule, RouterLink],
+  imports: [CommonModule, PdbViewerComponent, NgbCollapseModule, RouterLink, CampaignsTable],
   templateUrl: './project-detail.html',
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
@@ -51,6 +53,8 @@ export class ProjectDetail implements OnInit, OnDestroy {
 
   /** Project details card: false = expanded (content visible), true = collapsed (header only) */
   projectDetailsCollapsed = false;
+  /** Campañas de generación de datos: false = expanded, true = collapsed */
+  campaignsSectionCollapsed = false;
   /** Backbones section: false = expanded, true = collapsed */
   backbonesSectionCollapsed = false;
   /** Generación de datos sintéticos section: false = expanded, true = collapsed */
@@ -65,17 +69,22 @@ export class ProjectDetail implements OnInit, OnDestroy {
   /** Backbone ids whose structure is currently loading. */
   loadingBackboneStructure: Record<number, boolean> = {};
 
+  readonly projectId = signal<number | null>(null);
+
   private statusPollTimer: ReturnType<typeof setInterval> | null = null;
   private generationJobPollTimer: ReturnType<typeof setInterval> | null = null;
-  private projectId: number | null = null;
+
+  readonly runStatusLabel = runStatusLabel;
+  readonly runStatusBadgeClass = runStatusBadgeClass;
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
-      this.projectId = Number(id);
-      this.loadProject(this.projectId);
-      this.loadBackbones(this.projectId);
-      this.loadGenerationJobs(this.projectId);
+      const numericId = Number(id);
+      this.projectId.set(numericId);
+      this.loadProject(numericId);
+      this.loadBackbones(numericId);
+      this.loadGenerationJobs(numericId);
       this.startStatusPolling();
       this.startGenerationJobPolling();
     } else {
@@ -139,17 +148,17 @@ export class ProjectDetail implements OnInit, OnDestroy {
   }
 
   private loadStructuresForCompletedBackbones(): void {
-    if (this.projectId == null) return;
+    if (this.projectId() == null) return;
     for (const bb of this.backbones) {
       if (bb.status === 'COMPLETED') this.loadBackboneStructure(bb);
     }
   }
 
   private loadBackboneStructure(bb: Backbone): void {
-    if (this.projectId == null) return;
+    if (this.projectId() == null) return;
     if (this.backboneStructures[bb.id] !== undefined || this.loadingBackboneStructure[bb.id]) return;
     this.loadingBackboneStructure = { ...this.loadingBackboneStructure, [bb.id]: true };
-    this.projectService.getBackboneStructure(this.projectId, bb.id).subscribe({
+    this.projectService.getBackboneStructure(this.projectId()!, bb.id).subscribe({
       next: (s) => {
         this.backboneStructures = { ...this.backboneStructures, [bb.id]: s };
         const { [bb.id]: _, ...rest } = this.loadingBackboneStructure;
@@ -337,7 +346,7 @@ export class ProjectDetail implements OnInit, OnDestroy {
   private getRunningGenerationJobRunIds(): string[] {
     const runIds = new Set<string>();
     for (const j of this.generationJobs) {
-      if (j.runId && j.status === 'RUNNING') {
+      if (j.runId && isInFlightRunStatus(j.status)) {
         runIds.add(j.runId);
       }
     }
@@ -346,16 +355,16 @@ export class ProjectDetail implements OnInit, OnDestroy {
 
   private startGenerationJobPolling(): void {
     if (this.generationJobPollTimer != null) return;
-    if (this.projectId == null) return;
+    if (this.projectId() == null) return;
     this.generationJobPollTimer = setInterval(() => {
-      if (this.projectId == null) return;
+      if (this.projectId() == null) return;
       const runIds = this.getRunningGenerationJobRunIds();
       if (runIds.length === 0) return;
       forkJoin(
-        runIds.map((runId) => this.projectService.checkGenerationJobStatus(this.projectId!, runId))
+        runIds.map((runId) => this.projectService.checkGenerationJobStatus(this.projectId()!, runId))
       ).subscribe({
-        next: () => this.loadGenerationJobs(this.projectId!),
-        error: () => this.loadGenerationJobs(this.projectId!),
+        next: () => this.loadGenerationJobs(this.projectId()!),
+        error: () => this.loadGenerationJobs(this.projectId()!),
       });
     }, POLL_INTERVAL_MS);
   }
@@ -367,11 +376,11 @@ export class ProjectDetail implements OnInit, OnDestroy {
     }
   }
 
-  /** Distinct runIDs that have at least one backbone in RUNNING state. */
+  /** Distinct runIDs that have at least one backbone in QUEUED or RUNNING. */
   private getRunningRunIds(): string[] {
     const runIds = new Set<string>();
     for (const bb of this.backbones) {
-      if (bb.runID && bb.status === 'RUNNING') {
+      if (bb.runID && isInFlightRunStatus(bb.status)) {
         runIds.add(bb.runID);
       }
     }
@@ -380,23 +389,24 @@ export class ProjectDetail implements OnInit, OnDestroy {
 
   /**
    * Start a timer that runs every minute while the user is on this screen.
-   * Each minute: if any backbone has status RUNNING, call the status endpoint for those runs and refresh backbones.
-   * If none are RUNNING, do nothing. Timer never stops until the user leaves (ngOnDestroy).
+   * Each minute: if any backbone is QUEUED or RUNNING, call the status endpoint for those runs and refresh backbones.
+   * QUEUED GETs return local state (no core call) until the dispatcher assigns RUNNING.
+   * If none are in flight, do nothing. Timer never stops until the user leaves (ngOnDestroy).
    */
   private startStatusPolling(): void {
     if (this.statusPollTimer != null) return;
-    if (this.projectId == null) return;
+    if (this.projectId() == null) return;
 
     this.statusPollTimer = setInterval(() => {
-      if (this.projectId == null) return;
+      if (this.projectId() == null) return;
       const runIds = this.getRunningRunIds();
       if (runIds.length === 0) return;
 
       forkJoin(
-        runIds.map((runId) => this.projectService.checkRunStatus(this.projectId!, runId))
+        runIds.map((runId) => this.projectService.checkRunStatus(this.projectId()!, runId))
       ).subscribe({
-        next: () => this.loadBackbones(this.projectId!),
-        error: () => this.loadBackbones(this.projectId!),
+        next: () => this.loadBackbones(this.projectId()!),
+        error: () => this.loadBackbones(this.projectId()!),
       });
     }, POLL_INTERVAL_MS);
   }
@@ -549,18 +559,18 @@ export class ProjectDetail implements OnInit, OnDestroy {
 
   confirmDeleteBackbone(): void {
     const bb = this.backboneToDelete;
-    if (!bb || !this.projectId) {
+    if (!bb || this.projectId() == null) {
       this.deleteBackboneModalRef?.close();
       this.deleteBackboneModalRef = null;
       return;
     }
-    this.projectService.deleteBackbone(this.projectId, bb.id).subscribe({
+    this.projectService.deleteBackbone(this.projectId()!, bb.id).subscribe({
       next: () => {
         this.toastr.success('Backbone deleted.');
         this.backboneToDelete = null;
         this.deleteBackboneModalRef?.close();
         this.deleteBackboneModalRef = null;
-        this.loadBackbones(this.projectId!);
+        this.loadBackbones(this.projectId()!);
       },
       error: (err) => {
         this.toastr.error(err?.error?.message || err?.message || 'Failed to delete backbone.');
@@ -584,18 +594,18 @@ export class ProjectDetail implements OnInit, OnDestroy {
 
   confirmDeleteJob(): void {
     const job = this.jobToDelete;
-    if (!job || !this.projectId) {
+    if (!job || this.projectId() == null) {
       this.deleteJobModalRef?.close();
       this.deleteJobModalRef = null;
       return;
     }
-    this.projectService.deleteGenerationJob(this.projectId, job.id).subscribe({
+    this.projectService.deleteGenerationJob(this.projectId()!, job.id).subscribe({
       next: () => {
         this.toastr.success('Job deleted.');
         this.jobToDelete = null;
         this.deleteJobModalRef?.close();
         this.deleteJobModalRef = null;
-        this.loadGenerationJobs(this.projectId!);
+        this.loadGenerationJobs(this.projectId()!);
       },
       error: (err) => {
         this.toastr.error(err?.error?.message || err?.message || 'Failed to delete job.');

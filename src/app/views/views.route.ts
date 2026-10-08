@@ -18,4 +18,16 @@ export const VIEW_ROUTES: Route[] = [
     loadChildren: () =>
       import('./users/users.route').then((mod) => mod.USERS_ROUTES),
   },
+  {
+    path: 'config',
+    canActivate: [adminGuard],
+    loadChildren: () =>
+      import('./config/config.route').then((mod) => mod.CONFIG_ROUTES),
+  },
+  {
+    path: 'cores',
+    canActivate: [adminGuard],
+    loadComponent: () => import('./cores/cores').then((m) => m.CoresAdmin),
+    data: { title: 'Cores' },
+  },
 ];

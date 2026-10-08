@@ -50,4 +50,25 @@ export const MENU: MenuItem[] = [
     ],
     roles: ['admin'],
   },
+  {
+    key: 'config',
+    icon: 'solar:settings-bold-duotone',
+    label: 'Configuración',
+    collapsed: true,
+    roles: ['admin'],
+    subMenu: [
+      {
+        key: 'config-core-instances',
+        label: 'Instancias del core',
+        link: '/config/core-instances',
+        parentKey: 'config',
+      },
+      {
+        key: 'config-cores',
+        label: 'Carga de cores',
+        link: '/cores',
+        parentKey: 'config',
+      },
+    ],
+  },
 ]

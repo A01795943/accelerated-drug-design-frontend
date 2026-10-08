@@ -33,8 +33,19 @@
               <p class="mb-0">{{ project.description || '—' }}</p>
             </div>
             <div class="col-lg-6 mb-3">
-              <div class="d-flex align-items-center gap-2 mb-1">
+              <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
                 <label class="form-label text-muted small mb-0">Target</label>
+                @if (project.ecNumber) {
+                  <span class="badge bg-info-subtle text-info">EC {{ project.ecNumber }}</span>
+                }
+                @if (project.targetPdbId) {
+                  <a
+                    class="small"
+                    [href]="'https://www.rcsb.org/structure/' + project.targetPdbId"
+                    target="_blank"
+                    rel="noopener"
+                  >{{ project.targetPdbId }}</a>
+                }
                 <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="loadingTarget" (click)="openPdbModal(targetContent ?? undefined, 'Target')" title="Ver contenido PDB">
                   Ver PDB
                 </button>
@@ -55,11 +66,38 @@
         </div>
       </div>
 
+      <!-- Campañas de generación de datos (collapsible) -->
+      <div class="card mb-4">
+        <div class="card-header d-flex align-items-center justify-content-between gap-2 py-3 px-4">
+          <h4 class="card-title mb-0">Campañas de generación de datos</h4>
+          <div class="d-flex align-items-center gap-2">
+            <a [routerLink]="['/projects/detail', project.id, 'campaign', 'new']" class="btn btn-sm btn-primary">Nueva campaña</a>
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center justify-content-center rounded-circle"
+              style="width: 2rem; height: 2rem;"
+              [attr.aria-expanded]="!campaignsSectionCollapsed"
+              aria-controls="campaignsBody"
+              (click)="campaignsSectionCollapsed = !campaignsSectionCollapsed"
+              [attr.title]="campaignsSectionCollapsed ? 'Mostrar' : 'Ocultar'"
+            >
+              <iconify-icon [icon]="campaignsSectionCollapsed ? 'solar:alt-arrow-down-bold' : 'solar:alt-arrow-up-bold'" class="fs-5"></iconify-icon>
+            </button>
+          </div>
+        </div>
+        <div #campaignsCollapse="ngbCollapse" [(ngbCollapse)]="campaignsSectionCollapsed" id="campaignsBody" class="collapse show">
+          <div class="card-body">
+            <app-campaigns-table [projectId]="projectId()!"></app-campaigns-table>
+          </div>
+        </div>
+      </div>
+
       <!-- Backbones section (collapsible) -->
       <div class="card mb-4">
         <div class="card-header d-flex align-items-center justify-content-between gap-2 py-3 px-4">
           <h4 class="card-title mb-0">Backbones</h4>
           <div class="d-flex align-items-center gap-2">
+            <a [routerLink]="['/projects/detail', project.id, 'campaign', 'new']" class="btn btn-sm btn-outline-primary">Campaña de datos</a>
             <button type="button" class="btn btn-sm btn-primary" (click)="openAddBackboneModal()">Añadir backbone</button>
             <button
               type="button"
@@ -89,7 +127,7 @@
                             <span class="text-muted small">#{{ bb.id }}</span>
                             <span class="fw-medium ms-1">{{ bb.name }}</span>
                           </div>
-                          <span class="badge {{ bb.status === 'COMPLETED' ? 'bg-success-subtle text-success' : (bb.status === 'ERROR' ? 'bg-danger-subtle text-danger' : 'bg-primary-subtle text-primary') }}">{{ bb.status || '—' }}</span>
+                          <span class="badge {{ runStatusBadgeClass(bb.status) }}">{{ runStatusLabel(bb.status) }}</span>
                         </div>
                         <dl class="row row-cols-1 g-1 small mb-2">
                           <div class="col">
@@ -104,6 +142,12 @@
                             <dt class="d-inline text-muted">Cadenas a eliminar:</dt>
                             <dd class="d-inline ms-1 mb-0 text-truncate" [title]="bb.chainsToRemove || ''">{{ (bb.chainsToRemove || '—') | slice:0:60 }}{{ (bb.chainsToRemove?.length || 0) > 60 ? '…' : '' }}</dd>
                           </div>
+                          @if (bb.coreInstanceName) {
+                            <div class="col">
+                              <dt class="d-inline text-muted">Instancia:</dt>
+                              <dd class="d-inline ms-1 mb-0">{{ bb.coreInstanceName }}</dd>
+                            </div>
+                          }
                         </dl>
                         @if (bb.status === 'COMPLETED') {
                           <div class="mt-2">
@@ -124,6 +168,8 @@
                           </div>
                         } @else if (bb.status === 'RUNNING') {
                           <div class="mt-2 py-2 small text-muted">En ejecución…</div>
+                        } @else if (bb.status === 'QUEUED') {
+                          <div class="mt-2 py-2 small text-muted">En cola…</div>
                         }
                         <button
                           type="button"
@@ -312,11 +358,17 @@
                           }
                         </td>
                         <td>
-                          <span class="badge {{ job.status === 'COMPLETED' ? 'bg-success-subtle text-success' : (job.status === 'ERROR' ? 'bg-danger-subtle text-danger' : 'bg-primary-subtle text-primary') }}">{{ job.status ?? '—' }}</span>
+                          <span class="badge {{ runStatusBadgeClass(job.status) }}">{{ runStatusLabel(job.status) }}</span>
+                          @if (job.status === 'RUNNING' && job.totalMinibatches != null) {
+                            <div class="small text-muted mt-1">Minibatches {{ job.completedMinibatches ?? 0 }}/{{ job.totalMinibatches }}</div>
+                          }
+                          @if (job.coreInstanceName) {
+                            <div class="small text-muted mt-1">{{ job.coreInstanceName }}</div>
+                          }
                         </td>
                         <td>
                           <div class="d-flex gap-1 flex-wrap">
-                            @if (job.status === 'COMPLETED') {
+                            @if (job.status === 'COMPLETED' || job.status === 'QUEUED' || job.status === 'RUNNING') {
                               <a [routerLink]="['/projects/detail', project.id, 'job', job.id]" class="btn btn-sm btn-outline-primary">Detalles</a>
                             }
                             @if (job.status === 'ERROR') {

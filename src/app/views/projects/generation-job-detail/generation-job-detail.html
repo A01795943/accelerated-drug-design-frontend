@@ -8,7 +8,10 @@
       <div class="d-flex align-items-center gap-2 mb-4">
         <a [routerLink]="['/projects/detail', projectId]" class="btn btn-sm btn-outline-secondary">← Volver al proyecto</a>
         <h4 class="mb-0">Job {{ job.runId ?? job.id }}</h4>
-        <span class="badge {{ job.status === 'COMPLETED' ? 'bg-success-subtle text-success' : (job.status === 'ERROR' ? 'bg-danger-subtle text-danger' : 'bg-primary-subtle text-primary') }}">{{ job.status ?? '—' }}</span>
+        <span class="badge {{ runStatusBadgeClass(job.status) }}">{{ runStatusLabel(job.status) }}</span>
+        @if (job.coreInstanceName) {
+          <span class="text-muted small">Instancia: {{ job.coreInstanceName }}</span>
+        }
       </div>
 
       @if (job.status === 'ERROR' && job.error) {
@@ -16,6 +19,15 @@
           <strong>Error</strong>
           <pre class="mb-0 mt-2 small">{{ job.error }}</pre>
         </div>
+      }
+
+      @if (job.status === 'QUEUED') {
+        <p class="text-muted">En cola…</p>
+      } @else if (job.status === 'RUNNING') {
+        <p class="text-muted mb-1">En ejecución…</p>
+        @if (job.totalMinibatches != null) {
+          <p class="mb-0">Minibatches {{ job.completedMinibatches ?? 0 }}/{{ job.totalMinibatches }}</p>
+        }
       }
 
       @if (job.status === 'COMPLETED') {

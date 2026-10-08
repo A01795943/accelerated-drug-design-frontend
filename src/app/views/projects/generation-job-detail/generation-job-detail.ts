@@ -1,8 +1,9 @@
-import { Component, OnInit, inject, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { ProjectService, type GenerationJobDetailDto, type GenerationJobRecord } from '@core/services/project.service';
+import { isInFlightRunStatus, runStatusBadgeClass, runStatusLabel } from '@core/run-status';
 import { PdbContentModal } from '../project-detail/components/pdb-content-modal/pdb-content-modal';
 
 export interface MetricStats {
@@ -45,7 +46,7 @@ function computeMetricStats(values: number[]): MetricStats {
     `,
   ],
 })
-export class GenerationJobDetail implements OnInit {
+export class GenerationJobDetail implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private modalService = inject(NgbModal);
   private projectService = inject(ProjectService);
@@ -60,6 +61,12 @@ export class GenerationJobDetail implements OnInit {
   loadingFasta = false;
   loadingRecordPdbN: number | null = null;
   loadingCsv = false;
+
+  readonly runStatusLabel = runStatusLabel;
+  readonly runStatusBadgeClass = runStatusBadgeClass;
+
+  private pollTimer: ReturnType<typeof setInterval> | null = null;
+  private static readonly POLL_INTERVAL_MS = 60_000;
 
   /** Per-metric stats: min, max, promedio (mean), media (median), desvEst (std dev), varianza */
   get metricStats(): {
@@ -137,20 +144,55 @@ export class GenerationJobDetail implements OnInit {
     }
   }
 
-  load(): void {
+  ngOnDestroy(): void {
+    this.stopPolling();
+  }
+
+  load(silent = false): void {
     if (this.projectId == null || this.jobId == null) return;
-    this.loading = true;
+    if (!silent) this.loading = true;
     this.projectService.getGenerationJob(this.projectId, this.jobId).subscribe({
       next: (job) => {
         this.job = job;
         this.loadRecords();
         this.loading = false;
+        this.syncPolling();
       },
       error: (err) => {
         this.error = err?.message || 'Failed to load job.';
         this.loading = false;
+        this.stopPolling();
       },
     });
+  }
+
+  private syncPolling(): void {
+    if (isInFlightRunStatus(this.job?.status) && this.job?.runId) {
+      this.startPolling();
+    } else {
+      this.stopPolling();
+    }
+  }
+
+  private startPolling(): void {
+    if (this.pollTimer != null) return;
+    this.pollTimer = setInterval(() => {
+      if (this.projectId == null || !this.job?.runId || !isInFlightRunStatus(this.job.status)) {
+        this.stopPolling();
+        return;
+      }
+      this.projectService.checkGenerationJobStatus(this.projectId, this.job.runId).subscribe({
+        next: () => this.load(true),
+        error: () => this.load(true),
+      });
+    }, GenerationJobDetail.POLL_INTERVAL_MS);
+  }
+
+  private stopPolling(): void {
+    if (this.pollTimer != null) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
   }
 
   loadRecords(): void {

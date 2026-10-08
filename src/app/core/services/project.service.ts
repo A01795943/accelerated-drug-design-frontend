@@ -3,11 +3,13 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { environment } from '@environment/environment';
 
-/** Resumen de proyecto (detalle rápido sin target/complex). */
+/** Resumen de proyecto (detalle y listado; sin el texto PDB ni el linaje EC). */
 export interface ProjectSummaryDto {
   id: number;
   name: string;
   description?: string;
+  ecNumber?: string | null;
+  targetPdbId?: string | null;
 }
 
 export interface Project extends ProjectSummaryDto {
@@ -26,17 +28,22 @@ export interface CreateProjectRequest {
   complex?: string;
 }
 
+/** Status of a core run (RFdiffusion backbone or MPNN+AF generation job). */
+export type RunStatus = 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'ERROR';
+
 export interface Backbone {
   id: number;
   name: string;
   runID?: string;
-  status?: string;
+  status?: RunStatus;
   error?: string;
   iterations?: number;
   contigs?: string;
   hotspots?: string;
   chainsToRemove?: string;
   structure?: string;
+  coreInstanceId?: number | null;
+  coreInstanceName?: string | null;
 }
 
 export interface CreateBackbonesRequest {
@@ -50,7 +57,7 @@ export interface CreateBackbonesRequest {
 export interface GenerationJob {
   id: number;
   runId?: string;
-  status?: string;
+  status?: RunStatus;
   error?: string;
   temperature?: number;
   numSeqs?: number;
@@ -68,17 +75,25 @@ export interface GenerationJob {
   maxPtm?: number;
   /** Max iPTM across records for this job. */
   maxIPtm?: number;
+  coreInstanceId?: number | null;
+  coreInstanceName?: string | null;
+  completedMinibatches?: number | null;
+  totalMinibatches?: number | null;
 }
 
 /** Detalle de job para pantalla (sin bestPdb, fasta; se obtienen por endpoints separados). */
 export interface GenerationJobDetailDto {
   id: number;
   runId?: string;
-  status?: string;
+  status?: RunStatus;
   error?: string;
   totalRecords?: number;
   backboneId?: number;
   backboneName?: string;
+  coreInstanceId?: number | null;
+  coreInstanceName?: string | null;
+  completedMinibatches?: number | null;
+  totalMinibatches?: number | null;
 }
 
 export interface GenerationJobRecord {
@@ -146,6 +161,100 @@ export interface DescriptiveStatsDto {
 /** EDA: descriptive stats response (metric key -> stats) */
 export type DescriptiveStatsResponse = Record<string, DescriptiveStatsDto>;
 
+export interface GenerateResult {
+  contig: string;
+  hotspots: string;
+  chainsToRemove: string[];
+}
+
+export interface GenerateSuggestionsResponse {
+  requestedCount: number;
+  generatedCount: number;
+  suggestions: GenerateResult[];
+}
+
+export interface BackboneConfigDto {
+  contigs?: string;
+  hotspots?: string;
+  chainsToRemove?: string;
+  iterations?: number;
+  numBackbones?: number;
+}
+
+export interface CreateDataGenerationCampaignRequest {
+  backboneConfigs: BackboneConfigDto[];
+  temperatures: number[];
+  numSeqsPerTemperature: number;
+}
+
+export interface CreateCampaignResponse {
+  campaignId: number;
+}
+
+export type CampaignUnitStatus = RunStatus | 'PENDING' | 'SKIPPED';
+
+export interface CampaignTemperatureJobProgress {
+  temperature: number;
+  status: CampaignUnitStatus;
+  jobId?: number;
+  totalRecords?: number;
+  error?: string;
+}
+
+export interface BackbonePhysicalDetail {
+  id: number;
+  runId?: string | null;
+  status: CampaignUnitStatus;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  backboneId?: number | null;
+  error?: string | null;
+  temperatureJobs: CampaignTemperatureJobProgress[];
+}
+
+export interface BackboneConfigDetail {
+  contigs?: string | null;
+  hotspots?: string | null;
+  chainsToRemove?: string | null;
+  numBackbones: number;
+  completedBackbones: number;
+  backbones: BackbonePhysicalDetail[];
+}
+
+export interface CampaignBackboneProgress {
+  id: number;
+  contigs?: string;
+  hotspots?: string;
+  chainsToRemove?: string;
+  status: CampaignUnitStatus;
+  backboneId?: number;
+  error?: string;
+  jobs: CampaignTemperatureJobProgress[];
+}
+
+export interface DataGenerationCampaignDetail {
+  id: number;
+  status: string;
+  numSeqsPerTemperature?: number;
+  temperatures?: number[];
+  backboneConfigs: BackboneConfigDetail[];
+}
+
+export interface DataGenerationCampaignSummary {
+  id: number;
+  name: string | null;
+  status: 'RUNNING' | 'COMPLETED' | 'PARTIAL' | 'ERROR';
+  createdAt: string;
+  updatedAt: string;
+  totalBackbones: number;
+  completedBackbones: number;
+  totalTemperatureJobs: number;
+  completedTemperatureJobs: number;
+  totalSteps: number;
+  completedSteps: number;
+  progressPercent: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ProjectService {
   private http = inject(HttpClient);
@@ -204,6 +313,42 @@ export class ProjectService {
 
   generateChainsToRemove(projectId: number): Observable<string> {
     return this.http.get(this.generateUrl + '/chains-to-remove', { params: { projectId }, responseType: 'text' });
+  }
+
+  generateSuggestions(
+    projectId: number,
+    count: number,
+    minLength: number,
+    maxLength: number
+  ): Observable<GenerateSuggestionsResponse> {
+    const params = new HttpParams()
+      .set('projectId', String(projectId))
+      .set('count', String(count))
+      .set('minLength', String(minLength))
+      .set('maxLength', String(maxLength));
+    return this.http.get<GenerateSuggestionsResponse>(`${this.generateUrl}/suggestions`, { params });
+  }
+
+  createDataGenerationCampaign(
+    projectId: number,
+    request: CreateDataGenerationCampaignRequest
+  ): Observable<CreateCampaignResponse> {
+    return this.http.post<CreateCampaignResponse>(
+      `${this.apiUrl}/${projectId}/data-generation-campaigns`,
+      request
+    );
+  }
+
+  getDataGenerationCampaign(projectId: number, campaignId: number): Observable<DataGenerationCampaignDetail> {
+    return this.http.get<DataGenerationCampaignDetail>(
+      `${this.apiUrl}/${projectId}/data-generation-campaigns/${campaignId}`
+    );
+  }
+
+  listCampaigns(projectId: number): Observable<DataGenerationCampaignSummary[]> {
+    return this.http.get<DataGenerationCampaignSummary[]>(
+      `${this.apiUrl}/${projectId}/data-generation-campaigns`
+    );
   }
 
   getGenerationJobs(projectId: number): Observable<GenerationJob[]> {
