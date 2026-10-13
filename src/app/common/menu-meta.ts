@@ -58,6 +58,13 @@ export const MENU: MenuItem[] = [
     roles: ['admin'],
     subMenu: [
       {
+        key: 'config-settings',
+        label: 'Ajustes',
+        link: '/config/settings',
+        parentKey: 'config',
+        roles: ['admin'],
+      },
+      {
         key: 'config-core-instances',
         label: 'Instancias del core',
         link: '/config/core-instances',

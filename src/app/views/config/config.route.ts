@@ -7,6 +7,11 @@ export const CONFIG_ROUTES: Route[] = [
     pathMatch: 'full',
   },
   {
+    path: 'settings',
+    loadComponent: () => import('./settings/settings').then((m) => m.SettingsPage),
+    data: { title: 'Ajustes' },
+  },
+  {
     path: 'core-instances',
     loadComponent: () =>
       import('./core-instances/core-instances').then((m) => m.CoreInstances),

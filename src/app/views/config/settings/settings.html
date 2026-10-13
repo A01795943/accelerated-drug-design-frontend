@@ -1,0 +1,56 @@
+<div class="row">
+  <div class="col-12 col-xl-8">
+    <h4 class="mb-3">Ajustes</h4>
+    @if (error) {
+      <div class="alert alert-warning">{{ error }}</div>
+    }
+    @if (loading) {
+      <p class="text-muted">Cargando ajustes…</p>
+    }
+    @for (group of groups(); track group) {
+      <h5 class="mt-3">{{ group }}</h5>
+      @for (row of inGroup(group); track row.key) {
+        <form class="card mb-3" (ngSubmit)="save(row)">
+          <div class="card-body">
+            <label class="form-label" [attr.for]="'setting-' + row.key">{{ row.key }}</label>
+            <p class="text-muted mb-2">{{ row.description }}</p>
+            <p class="small mb-2">Valor por defecto: {{ row.defaultValue }}</p>
+            @if (row.type === 'integer') {
+              <input
+                class="form-control"
+                type="number"
+                [id]="'setting-' + row.key"
+                [formControl]="control(row)"
+                [attr.min]="row.min"
+                [attr.max]="row.max"
+                step="1"
+              />
+            } @else {
+              <input class="form-control" type="text" [id]="'setting-' + row.key" [formControl]="control(row)" />
+            }
+            @if (control(row).touched && control(row).invalid) {
+              <div class="text-danger small mt-1">
+                El valor debe ser un entero entre {{ row.min }} y {{ row.max }}.
+              </div>
+            }
+            @if (row.key === factorKey && attemptsForHundred(row) != null) {
+              <p class="mt-2 mb-0">
+                con un minibatch de 100 secuencias, hasta {{ attemptsForHundred(row) }} intentos
+              </p>
+            }
+            @if (row.key === factorKey && (numeric(row) ?? 0) > highFactor) {
+              <div class="alert alert-warning mt-2 mb-0">
+                A temperaturas bajas el minibatch puede tardar horas antes de llamar a AlphaFold.
+              </div>
+            }
+            <div class="d-flex justify-content-end mt-3">
+              <button class="btn btn-primary" type="submit" [disabled]="control(row).invalid || savingKey === row.key">
+                Guardar
+              </button>
+            </div>
+          </div>
+        </form>
+      }
+    }
+  </div>
+</div>
