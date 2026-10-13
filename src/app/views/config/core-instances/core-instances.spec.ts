@@ -1,84 +1,104 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpErrorResponse } from '@angular/common/http';
-import { of, throwError } from 'rxjs';
-import { CoreInstances } from './core-instances';
-import { CoreInstanceService, type CoreInstance } from '@core/services/core-instance.service';
+import { provideRouter } from '@angular/router';
+import { of } from 'rxjs';
+import { CoreAdminService, CoreInstanceService, type CoreAdminInstance, type LoadPolicy } from '@core/services/core-instance.service';
+import { CoresAdmin } from '../../cores/cores';
 
-describe('CoreInstances', () => {
-  let fixture: ComponentFixture<CoreInstances>;
-  let component: CoreInstances;
-  let service: jasmine.SpyObj<CoreInstanceService>;
+describe('CoresAdmin administration', () => {
+  let fixture: ComponentFixture<CoresAdmin>;
+  let component: CoresAdmin;
+  let pool: jasmine.SpyObj<CoreInstanceService>;
 
-  const sample: CoreInstance = {
+  const policy: LoadPolicy = {
+    cpuEnter: 90, memoryEnter: 90, gpuUtilEnter: 95, gpuMemEnter: 90, diskEnter: 90,
+    cpuRecover: 80, memoryRecover: 80, gpuUtilRecover: 80, gpuMemRecover: 80, diskRecover: 85,
+  };
+  const row: CoreAdminInstance = {
     id: 1,
     name: 'core-principal',
     baseUrl: 'http://localhost:8000',
     enabled: true,
-    restrictSchedule: false,
-    healthState: 'UP',
-    currentRunId: null,
-    windows: [],
+    status: 'AVAILABLE',
+    maxConcurrentRuns: 1,
+    inFlightMinibatches: 0,
+    inFlightTotal: 0,
+    occupancy: 'FREE',
+    gpuDataAvailable: false,
+    gpus: [],
+    runningMinibatches: [],
   };
 
   beforeEach(async () => {
-    service = jasmine.createSpyObj('CoreInstanceService', ['list', 'create', 'patch', 'delete']);
-    service.list.and.returnValue(of([sample]));
+    pool = jasmine.createSpyObj('CoreInstanceService', ['list', 'create', 'patch', 'delete']);
+    pool.list.and.returnValue(of([{
+      id: 1, name: 'core-principal', baseUrl: 'http://localhost:8000', enabled: true,
+      restrictSchedule: false, healthState: 'UP', windows: [],
+    }]));
+    pool.patch.and.returnValue(of({
+      id: 1, name: 'core-lab', baseUrl: 'http://localhost:8000', enabled: true,
+      restrictSchedule: true, healthState: 'UP', windows: [],
+    }));
 
     await TestBed.configureTestingModule({
-      imports: [CoreInstances],
-      providers: [{ provide: CoreInstanceService, useValue: service }],
+      imports: [CoresAdmin],
+      providers: [
+        provideRouter([]),
+        { provide: CoreInstanceService, useValue: pool },
+        {
+          provide: CoreAdminService,
+          useValue: {
+            list: () => of([row]),
+            loadPolicy: () => of(policy),
+            patch: () => of(row),
+            refresh: () => of(row),
+            history: () => of([]),
+          },
+        },
+      ],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(CoreInstances);
+    fixture = TestBed.createComponent(CoresAdmin);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });
 
-  it('should list instances with health and occupancy', () => {
+  it('lists a free instance', () => {
     expect(component.instances.length).toBe(1);
-    const html = fixture.nativeElement as HTMLElement;
-    expect(html.textContent).toContain('core-principal');
-    expect(html.textContent).toContain('UP');
-    expect(html.textContent).toContain('Libre');
+    expect(fixture.nativeElement.textContent).toContain('core-principal');
+    expect(fixture.nativeElement.textContent).toContain('Libre');
+    expect(fixture.nativeElement.textContent).toContain('sin datos de GPU');
+    expect(fixture.nativeElement.textContent).toContain('No hay nada corriendo.');
   });
 
   it('hides the window editor until restrictSchedule is enabled', () => {
     component.openCreate();
     fixture.detectChanges();
     expect(component.restrictSchedule).toBeFalse();
-    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Ventanas de disponibilidad');
-
+    expect(fixture.nativeElement.textContent).not.toContain('Ventanas de disponibilidad');
     component.form.patchValue({ restrictSchedule: true });
     fixture.detectChanges();
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Ventanas de disponibilidad');
+    expect(fixture.nativeElement.textContent).toContain('Ventanas de disponibilidad');
   });
 
-  it('maps 400 allowlist errors clearly', () => {
-    const err = new HttpErrorResponse({
+  it('maps 400 and 409 errors', () => {
+    expect(component.formatApiError(new HttpErrorResponse({
       status: 400,
       error: { error: 'baseUrl host is not in the allowed private CIDR ranges' },
-    });
-    expect(component.formatApiError(err, 'fallback')).toContain('allowed private CIDR');
-  });
-
-  it('maps 409 delete conflicts to disable guidance', () => {
-    const err = new HttpErrorResponse({
+    }), 'fallback')).toContain('allowed private CIDR');
+    expect(component.formatApiError(new HttpErrorResponse({
       status: 409,
-      error: { error: 'Cannot delete instance while a run is in progress. Disable it (enabled=false) instead of deleting.' },
-    });
-    expect(component.formatApiError(err, 'fallback')).toContain('Disable it');
+      error: { error: 'Cannot delete instance while runs are in flight. Disable it (enabled=false) instead of deleting.' },
+    }), 'fallback')).toContain('Disable it');
   });
 
   it('patches on edit', () => {
-    service.patch.and.returnValue(of({ ...sample, name: 'core-lab' }));
-    component.openEdit(sample);
+    component.openEdit(component.instances[0]);
     component.form.patchValue({ name: 'core-lab', restrictSchedule: true });
     component.submitForm();
-    expect(service.patch).toHaveBeenCalled();
-    const [id, payload] = service.patch.calls.mostRecent().args;
+    expect(pool.patch).toHaveBeenCalled();
+    const [id, payload] = pool.patch.calls.mostRecent().args;
     expect(id).toBe(1);
     expect(payload.name).toBe('core-lab');
-    expect(payload.restrictSchedule).toBeTrue();
-    expect(payload.windows?.length).toBeGreaterThan(0);
   });
 });

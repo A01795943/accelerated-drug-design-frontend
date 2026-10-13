@@ -13,8 +13,7 @@ export const CONFIG_ROUTES: Route[] = [
   },
   {
     path: 'core-instances',
-    loadComponent: () =>
-      import('./core-instances/core-instances').then((m) => m.CoreInstances),
-    data: { title: 'Instancias del core' },
+    redirectTo: '/cores',
+    pathMatch: 'full',
   },
 ];

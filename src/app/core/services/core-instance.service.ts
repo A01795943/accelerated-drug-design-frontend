@@ -94,6 +94,59 @@ export interface CoreAdminInstance {
   currentRunId?: string | null;
   lastMetricsAt?: string | null;
   lastMetricsJson?: string | null;
+  inFlightTotal: number;
+  occupancy: 'FREE' | 'IN_USE' | 'FULL' | string;
+  runningMinibatches: RunningMinibatch[];
+  otherRun?: { kind: string; runId: string } | null;
+  gpuDataAvailable: boolean;
+  gpus: GpuReading[];
+}
+
+export interface RunningMinibatch {
+  generationJobId: number;
+  minibatchId: number;
+  idx: number;
+  nOffset: number;
+  numSeqs: number;
+  temperature?: number | null;
+  backboneId?: number | null;
+  backboneName?: string | null;
+  projectId?: number | null;
+  startedAt?: string | null;
+}
+
+export interface GpuReading {
+  index?: number | null;
+  name?: string | null;
+  utilPercent?: number | null;
+  memUsedMb?: number | null;
+  memTotalMb?: number | null;
+  memPercent?: number | null;
+  temperatureC?: number | null;
+}
+
+export interface LoadPolicy {
+  cpuEnter: number;
+  memoryEnter: number;
+  gpuUtilEnter: number;
+  gpuMemEnter: number;
+  diskEnter: number;
+  cpuRecover: number;
+  memoryRecover: number;
+  gpuUtilRecover: number;
+  gpuMemRecover: number;
+  diskRecover: number;
+}
+
+export interface CoreMetricSample {
+  collectedAt: string;
+  cpuPercent?: number | null;
+  memPercent?: number | null;
+  gpuUtilPercent?: number | null;
+  gpuMemPercent?: number | null;
+  diskPercent?: number | null;
+  gpuMemUsedMb?: number | null;
+  gpuMemTotalMb?: number | null;
 }
 
 export interface RegisterCoreRequest {
@@ -112,7 +165,15 @@ export interface PatchCoreAdminRequest {
 export interface CoreSystemMetricsSnapshot {
   cpu?: { percent?: number };
   memory?: { percent?: number };
-  gpus?: { util_percent?: number; mem_percent?: number }[];
+  gpus?: {
+    index?: number;
+    name?: string;
+    util_percent?: number;
+    mem_used_mb?: number;
+    mem_total_mb?: number;
+    mem_percent?: number;
+    temperature_c?: number;
+  }[];
   disk?: { percent?: number };
   network?: { sent_per_sec?: number; recv_per_sec?: number };
 }
@@ -136,5 +197,13 @@ export class CoreAdminService {
 
   refresh(id: number): Observable<CoreAdminInstance> {
     return this.http.post<CoreAdminInstance>(`${this.apiUrl}/${id}/refresh`, {});
+  }
+
+  loadPolicy(): Observable<LoadPolicy> {
+    return this.http.get<LoadPolicy>(`${this.apiUrl}/load-policy`);
+  }
+
+  history(id: number, hours: number): Observable<CoreMetricSample[]> {
+    return this.http.get<CoreMetricSample[]>(`${this.apiUrl}/${id}/metrics/history`, { params: { hours } });
   }
 }

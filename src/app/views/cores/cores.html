@@ -1,8 +1,19 @@
 <div class="row">
   <div class="col-12">
-    <div class="d-flex align-items-center justify-content-between mb-3">
-      <h4 class="mb-0">Carga de cores</h4>
-      <button type="button" class="btn btn-sm btn-outline-secondary" (click)="load()" [disabled]="loading">Actualizar</button>
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+      <div>
+        <h4 class="mb-0">Cores</h4>
+        <div class="small text-muted">
+          Última actualización: {{ lastUpdated ? (lastUpdated | date: 'medium') : '—' }}
+        </div>
+      </div>
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="toggleAutoRefresh()">
+          {{ autoRefresh ? 'Pausar' : 'Reanudar' }} autorefresco
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="load(false)" [disabled]="loading">Actualizar</button>
+        <button type="button" class="btn btn-sm btn-primary" (click)="openCreate()">Nueva instancia</button>
+      </div>
     </div>
 
     @if (error) {
@@ -15,81 +26,196 @@
       <p class="text-muted">Cargando instancias…</p>
     } @else if (!error && instances.length === 0) {
       <p class="text-muted">No hay instancias registradas.</p>
-    } @else if (!error) {
-      <div class="table-responsive">
-        <table class="table align-middle">
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>Estado</th>
-              <th>Razón</th>
-              <th>CPU</th>
-              <th>RAM</th>
-              <th>GPU</th>
-              <th>Disco</th>
-              <th>Red</th>
-              <th>En vuelo</th>
-              <th>Activa</th>
-              <th>Máx. concurrentes</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (row of instances; track row.id) {
-              <tr>
-                <td>
-                  <div>{{ row.name }}</div>
-                  <div class="small text-muted">{{ row.baseUrl }}</div>
-                </td>
-                <td><span class="badge {{ statusClass(row.status) }}">{{ row.status }}</span></td>
-                <td class="small">{{ row.statusReason || '—' }}</td>
-                <td>{{ cpu(row) }}</td>
-                <td>{{ ram(row) }}</td>
-                <td>{{ gpu(row) }}</td>
-                <td>{{ disk(row) }}</td>
-                <td class="small">{{ network(row) }}</td>
-                <td>{{ row.inFlightMinibatches }}</td>
-                <td>
-                  <div class="form-check form-switch">
-                    <input
-                      class="form-check-input"
-                      type="checkbox"
-                      role="switch"
-                      [checked]="row.enabled"
-                      [disabled]="savingId === row.id"
-                      (change)="toggleEnabled(row)"
-                      [attr.aria-label]="'Activar ' + row.name"
-                    />
-                  </div>
-                </td>
-                <td style="min-width: 8rem">
-                  <input
-                    class="form-control form-control-sm"
-                    type="number"
-                    min="1"
-                    [(ngModel)]="drafts[row.id]"
-                    [disabled]="savingId === row.id"
-                    [attr.aria-label]="'Máximo concurrente de ' + row.name"
-                  />
-                </td>
-                <td class="text-nowrap">
-                  <button
-                    type="button"
-                    class="btn btn-sm btn-outline-primary me-1"
-                    [disabled]="savingId === row.id || drafts[row.id] === row.maxConcurrentRuns"
-                    (click)="saveMax(row)"
-                  >Guardar</button>
-                  <button
-                    type="button"
-                    class="btn btn-sm btn-outline-secondary"
-                    [disabled]="savingId === row.id"
-                    (click)="refresh(row)"
-                  >Métricas</button>
-                </td>
-              </tr>
+    }
+
+    @for (row of instances; track row.id) {
+      <div class="card mb-3">
+        <div class="card-body">
+          <div class="d-flex flex-wrap justify-content-between gap-2">
+            <div>
+              <h5 class="mb-1">{{ row.name }}</h5>
+              <div class="small text-muted">{{ row.baseUrl }}</div>
+            </div>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+              <div class="form-check form-switch mb-0">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  role="switch"
+                  [checked]="row.enabled"
+                  [disabled]="savingId === row.id"
+                  (change)="toggleEnabled(row)"
+                  [attr.aria-label]="'Habilitar ' + row.name"
+                />
+              </div>
+              <span class="badge {{ occupancyClass(row) }}">{{ occupancyLabel(row) }}</span>
+              <span class="badge {{ statusClass(row.status) }}">{{ statusLabel(row.status) }}</span>
+              <span class="small text-muted">Métrica: {{ lastMetrics(row) }}</span>
+              <button type="button" class="btn btn-sm btn-outline-secondary" (click)="refresh(row)" [disabled]="savingId === row.id">
+                Refrescar
+              </button>
+            </div>
+          </div>
+
+          <div class="row mt-3 g-3">
+            @for (kind of ['cpu', 'memory', 'disk']; track kind) {
+              <div class="col-12 col-md-4">
+                <div class="small text-uppercase text-muted">{{ kind === 'cpu' ? 'CPU' : kind === 'memory' ? 'RAM' : 'Disco' }}</div>
+                <div [class]="meter(row, $any(kind)).klass">{{ meter(row, $any(kind)).text }}</div>
+                <div class="progress mt-1" style="height: 0.4rem">
+                  <div class="progress-bar" [style.width.%]="meter(row, $any(kind)).width"></div>
+                </div>
+              </div>
             }
-          </tbody>
-        </table>
+          </div>
+
+          <div class="mt-3">
+            <div class="small text-uppercase text-muted">GPU</div>
+            @if (!row.gpuDataAvailable) {
+              <p class="mb-0">sin datos de GPU</p>
+            } @else {
+              @for (gpu of row.gpus; track $index) {
+                <div class="border rounded p-2 mt-2">
+                  <div class="fw-semibold">{{ gpu.name || 'GPU' }} {{ gpu.index != null ? '#' + gpu.index : '' }}</div>
+                  <div>Utilización: <span [class]="gpuMeter(gpu, 'util').klass">{{ gpuMeter(gpu, 'util').text }}</span></div>
+                  <div>VRAM: {{ gpuLine(gpu) }}</div>
+                </div>
+              }
+            }
+          </div>
+
+          <div class="mt-3">
+            <div class="small text-uppercase text-muted">En curso</div>
+            @if (row.runningMinibatches.length === 0 && !row.otherRun) {
+              <p class="mb-0">No hay nada corriendo.</p>
+            } @else {
+              <ul class="mb-0">
+                @for (minibatch of row.runningMinibatches; track minibatch.minibatchId) {
+                  <li>
+                    @if (jobLink(minibatch); as link) {
+                      <a [routerLink]="link">Job {{ minibatch.generationJobId }}</a>
+                    } @else {
+                      Job {{ minibatch.generationJobId }}
+                    }
+                    · backbone {{ minibatch.backboneName || '—' }}
+                    · T={{ minibatch.temperature ?? '—' }}
+                    · minibatch {{ minibatch.idx }}
+                    · {{ elapsed(minibatch.startedAt) }}
+                  </li>
+                }
+                @if (row.otherRun) {
+                  <li>{{ row.otherRun.kind }} {{ row.otherRun.runId }}</li>
+                }
+              </ul>
+            }
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <button type="button" class="btn btn-sm btn-outline-primary" (click)="toggleHistory(row)">
+              {{ expandedId === row.id ? 'Ocultar histórico' : 'Histórico' }}
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" (click)="openEdit(row)">Editar</button>
+            <button type="button" class="btn btn-sm btn-outline-danger" (click)="deleteInstance(row)">Eliminar</button>
+          </div>
+
+          @if (expandedId === row.id) {
+            <div class="mt-3">
+              <div class="btn-group btn-group-sm mb-2" role="group" aria-label="Rango del histórico">
+                @for (range of ranges; track range.hours) {
+                  <button
+                    type="button"
+                    class="btn"
+                    [class.btn-primary]="historyHours[row.id] === range.hours"
+                    [class.btn-outline-primary]="historyHours[row.id] !== range.hours"
+                    (click)="setRange(row, range.hours)"
+                  >
+                    {{ range.label }}
+                  </button>
+                }
+              </div>
+              @if (historyLoading) {
+                <p class="text-muted">Cargando histórico…</p>
+              } @else if (chart) {
+                <apx-chart
+                  [series]="$any(chart.series)"
+                  [chart]="$any(chart.chart)"
+                  [xaxis]="$any(chart.xaxis)"
+                  [yaxis]="$any(chart.yaxis)"
+                  [stroke]="$any(chart.stroke)"
+                ></apx-chart>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    @if (formOpen) {
+      <div class="card">
+        <div class="card-body">
+          <h5>{{ editing ? 'Editar instancia' : 'Nueva instancia' }}</h5>
+          @if (formError) {
+            <div class="alert alert-danger">{{ formError }}</div>
+          }
+          <form [formGroup]="form" (ngSubmit)="submitForm()">
+            <div class="row g-2">
+              <div class="col-12 col-md-6">
+                <label class="form-label">Nombre</label>
+                <input class="form-control" formControlName="name" />
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label">URL</label>
+                <input class="form-control" formControlName="baseUrl" />
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label">Máx. concurrentes</label>
+                <input class="form-control" type="number" min="1" formControlName="maxConcurrentRuns" />
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label">Máx. minutos</label>
+                <input class="form-control" type="number" formControlName="maxJobMinutes" />
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label">Timeout conexión (ms)</label>
+                <input class="form-control" type="number" formControlName="connectTimeoutMs" />
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label">Timeout lectura (ms)</label>
+                <input class="form-control" type="number" formControlName="readTimeoutMs" />
+              </div>
+            </div>
+            <div class="form-check mt-3">
+              <input class="form-check-input" type="checkbox" id="restrictSchedule" formControlName="restrictSchedule" />
+              <label class="form-check-label" for="restrictSchedule">Restringir horario</label>
+            </div>
+            @if (restrictSchedule) {
+              <div class="mt-2" formArrayName="windows">
+                <div class="fw-semibold">Ventanas de disponibilidad</div>
+                @for (window of windows.controls; track $index) {
+                  <div class="row g-2 mt-1" [formGroupName]="$index">
+                    <div class="col-4">
+                      <select class="form-select" formControlName="dayOfWeek">
+                        @for (day of days; track day.value) {
+                          <option [ngValue]="day.value">{{ day.label }}</option>
+                        }
+                      </select>
+                    </div>
+                    <div class="col-3"><input class="form-control" type="time" formControlName="startTime" /></div>
+                    <div class="col-3"><input class="form-control" type="time" formControlName="endTime" /></div>
+                    <div class="col-2">
+                      <button type="button" class="btn btn-outline-danger" (click)="removeWindow($index)">Quitar</button>
+                    </div>
+                  </div>
+                }
+                <button type="button" class="btn btn-sm btn-outline-secondary mt-2" (click)="addWindow()">Agregar ventana</button>
+              </div>
+            }
+            <div class="d-flex gap-2 mt-3">
+              <button class="btn btn-primary" type="submit" [disabled]="formLoading">Guardar</button>
+              <button class="btn btn-outline-secondary" type="button" (click)="closeForm()">Cancelar</button>
+            </div>
+          </form>
+        </div>
       </div>
     }
   </div>

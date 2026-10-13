@@ -65,16 +65,11 @@ export const MENU: MenuItem[] = [
         roles: ['admin'],
       },
       {
-        key: 'config-core-instances',
-        label: 'Instancias del core',
-        link: '/config/core-instances',
-        parentKey: 'config',
-      },
-      {
         key: 'config-cores',
-        label: 'Carga de cores',
+        label: 'Cores',
         link: '/cores',
         parentKey: 'config',
+        roles: ['admin'],
       },
     ],
   },
