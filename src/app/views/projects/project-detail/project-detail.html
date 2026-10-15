@@ -196,15 +196,16 @@
         <div class="card-header d-flex align-items-center justify-content-between gap-2 py-3 px-4">
           <h4 class="card-title mb-0">Generación de datos sintéticos</h4>
           <div class="d-flex align-items-center gap-2">
-            @if (selectedJobIds.length > 0) {
+            <span class="small text-muted">{{ selectedCount }} seleccionados</span>
+            @if (selectedCount > 0) {
               <button type="button" class="btn btn-sm btn-outline-primary" (click)="navigateToEdaMulti()">
                 EDA
               </button>
-              <button type="button" class="btn btn-sm btn-outline-primary" (click)="consolidateCsv()" [disabled]="loadingConsolidateCsv">
-                {{ loadingConsolidateCsv ? 'Cargando' : 'Consolidar CSVs' }}
-              </button>
             }
-            @if (selectedJobIds.length >= 2) {
+            <button type="button" class="btn btn-sm btn-outline-primary" (click)="consolidateCsv()" [disabled]="selectedCount === 0 || loadingConsolidateCsv">
+              {{ loadingConsolidateCsv ? 'Cargando' : 'Consolidar CSVs' }}
+            </button>
+            @if (selectedCount >= 2) {
               <button type="button" class="btn btn-sm btn-outline-primary" (click)="navigateToCompare()">
                 Comparar
               </button>
@@ -227,21 +228,60 @@
         </div>
         <div #generationJobsCollapse="ngbCollapse" [(ngbCollapse)]="generationJobsSectionCollapsed" id="generationJobsBody" class="collapse show">
           <div class="card-body">
+            <div class="d-flex flex-wrap align-items-end gap-3 mb-3">
+              <div>
+                <label class="form-label small mb-1" for="generationBackboneFilter">Backbone</label>
+                <select
+                  #backboneFilter
+                  id="generationBackboneFilter"
+                  multiple
+                  class="form-select form-select-sm"
+                  size="4"
+                  style="min-width: 18rem;"
+                  (change)="onBackboneFilterChange(backboneFilter)"
+                >
+                  @for (bb of jobFilterBackbones; track bb.id) {
+                    <option [value]="bb.id" [selected]="isBackboneFilterSelected(bb.id)">#{{ bb.id }} {{ bb.name }}</option>
+                  }
+                </select>
+                <div class="form-text">Ctrl o Cmd para elegir varios. Sin selección se listan todos.</div>
+              </div>
+              @if (selectedBackboneIds.length > 0) {
+                <button type="button" class="btn btn-sm btn-link" (click)="clearBackboneFilter()">Quitar filtro</button>
+              }
+            </div>
+            @if (consolidatableCount > 0 && selectionMode !== 'filtered') {
+              <p class="mb-3">
+                <button type="button" class="btn btn-link btn-sm p-0" (click)="selectAllFilteredResults()">
+                  Seleccionar los {{ consolidatableCount }} resultados filtrados
+                </button>
+              </p>
+            }
+            @if (selectionMode === 'filtered') {
+              <p class="small mb-3">
+                Seleccionados los {{ selectedCount }} resultados filtrados.
+                <button type="button" class="btn btn-link btn-sm p-0 align-baseline" (click)="clearJobSelection()">Limpiar selección</button>
+              </p>
+            }
             @if (generationJobs.length === 0) {
-              <p class="text-muted mb-0">Aún no hay jobs. Haga clic en "Nuevo job" para crear uno (se requiere un backbone completado).</p>
+              @if (selectedBackboneIds.length > 0) {
+                <p class="text-muted mb-0">Ningún job coincide con el filtro de backbone.</p>
+              } @else {
+                <p class="text-muted mb-0">Aún no hay jobs. Haga clic en "Nuevo job" para crear uno (se requiere un backbone completado).</p>
+              }
             } @else {
               <div class="table-responsive">
                 <table class="table align-middle mb-0 table-hover">
                   <thead class="bg-light-subtle">
                     <tr>
                       <th class="text-center" style="width: 2.5rem;">
-                        @if (completedJobs.length > 0) {
+                        @if (completedJobsOnPage.length > 0) {
                           <input
                             type="checkbox"
                             class="form-check-input"
-                            [checked]="allCompletedSelected"
+                            [checked]="allCompletedOnPageSelected"
                             (change)="toggleSelectAllCompleted()"
-                            [attr.aria-label]="'Seleccionar todas las ejecuciones completadas'"
+                            [attr.aria-label]="'Seleccionar las ejecuciones completadas de esta página'"
                           />
                         }
                       </th>
@@ -371,6 +411,9 @@
                             @if (job.status === 'COMPLETED' || job.status === 'QUEUED' || job.status === 'RUNNING') {
                               <a [routerLink]="['/projects/detail', project.id, 'job', job.id]" class="btn btn-sm btn-outline-primary">Detalles</a>
                             }
+                            @if (job.totalMinibatches != null) {
+                              <button type="button" class="btn btn-sm btn-outline-secondary" (click)="openMinibatches(job)">Minibatches</button>
+                            }
                             @if (job.status === 'ERROR') {
                               <button type="button" class="btn btn-sm btn-outline-warning d-inline-flex align-items-center gap-1" (click)="openJobErrorModal(job)" title="Ver detalles del error">
                                 <iconify-icon icon="solar:danger-circle-outline" class="fs-6"></iconify-icon>
@@ -388,6 +431,15 @@
                   </tbody>
                 </table>
               </div>
+              @if (jobsTotalPages > 1) {
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                  <span class="small text-muted">Página {{ jobsPage + 1 }} de {{ jobsTotalPages }} ({{ jobsTotalElements }} jobs)</span>
+                  <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-outline-secondary" [disabled]="jobsPage === 0" (click)="goToJobsPage(jobsPage - 1)">Anterior</button>
+                    <button type="button" class="btn btn-outline-secondary" [disabled]="jobsPage + 1 >= jobsTotalPages" (click)="goToJobsPage(jobsPage + 1)">Siguiente</button>
+                  </div>
+                </div>
+              }
             }
           </div>
         </div>

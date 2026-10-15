@@ -3,11 +3,12 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { NgbModal, NgbModalRef, NgbCollapseModule } from '@ng-bootstrap/ng-bootstrap';
 import { RouterLink } from '@angular/router';
-import { ProjectService, type ProjectSummaryDto, type Backbone, type GenerationJob } from '@core/services/project.service';
+import { ProjectService, type ProjectSummaryDto, type Backbone, type BackboneFilterOption, type GenerationJob } from '@core/services/project.service';
 import { isInFlightRunStatus, runStatusBadgeClass, runStatusLabel } from '@core/run-status';
 import { CampaignsTable } from '@views/projects/detail/campaigns-table/campaigns-table';
 import { AddBackboneModal } from './components/add-backbone-modal/add-backbone-modal';
 import { AddGenerationJobModal } from './components/add-generation-job-modal/add-generation-job-modal';
+import { MinibatchModal } from '@views/projects/minibatch-modal/minibatch-modal';
 import { PdbViewerComponent } from './components/pdb-viewer/pdb-viewer';
 import { PdbContentModal } from './components/pdb-content-modal/pdb-content-modal';
 import { ToastrService } from 'ngx-toastr';
@@ -62,7 +63,19 @@ export class ProjectDetail implements OnInit, OnDestroy {
 
   /** Selected generation job IDs (only completed runs can be selected). */
   selectedJobIds: number[] = [];
+  /** When 'filtered', every COMPLETED job matching the backbone filter is selected except excludedJobIds. */
+  selectionMode: 'explicit' | 'filtered' = 'explicit';
+  excludedJobIds: number[] = [];
   loadingConsolidateCsv = false;
+
+  readonly jobsPageSize = 10;
+  jobsPage = 0;
+  jobsTotalElements = 0;
+  jobsTotalPages = 0;
+  /** COMPLETED jobs matching the current backbone filter (all pages). */
+  consolidatableCount = 0;
+  jobFilterBackbones: BackboneFilterOption[] = [];
+  selectedBackboneIds: number[] = [];
 
   /** PDB structure by backbone id (loaded on demand from GET .../backbones/{id}/structure). */
   backboneStructures: Record<number, string> = {};
@@ -84,6 +97,7 @@ export class ProjectDetail implements OnInit, OnDestroy {
       this.projectId.set(numericId);
       this.loadProject(numericId);
       this.loadBackbones(numericId);
+      this.loadJobFilterBackbones(numericId);
       this.loadGenerationJobs(numericId);
       this.startStatusPolling();
       this.startGenerationJobPolling();
@@ -184,14 +198,69 @@ export class ProjectDetail implements OnInit, OnDestroy {
   }
 
   loadGenerationJobs(projectId: number): void {
-    this.projectService.getGenerationJobs(projectId).subscribe({
-      next: (list) => {
-        this.generationJobs = list;
+    this.projectService.getGenerationJobs(projectId, {
+      page: this.jobsPage,
+      size: this.jobsPageSize,
+      backboneIds: this.selectedBackboneIds,
+      sort: this.sortColumn ?? undefined,
+      direction: this.sortColumn ? this.sortDirection : undefined,
+    }).subscribe({
+      next: (page) => {
+        this.generationJobs = page?.jobs ?? [];
+        this.jobsTotalElements = page?.totalElements ?? 0;
+        this.jobsTotalPages = page?.totalPages ?? 0;
+        this.consolidatableCount = page?.consolidatableCount ?? 0;
+        if (this.jobsPage > 0 && this.generationJobs.length === 0 && this.jobsTotalElements > 0) {
+          this.jobsPage = Math.max(0, this.jobsTotalPages - 1);
+          this.loadGenerationJobs(projectId);
+        }
       },
       error: (err) => {
         this.error = err?.message || 'Failed to load generation jobs.';
       },
     });
+  }
+
+  loadJobFilterBackbones(projectId: number): void {
+    this.projectService.getGenerationJobFilterBackbones(projectId).subscribe({
+      next: (list) => {
+        this.jobFilterBackbones = list ?? [];
+      },
+      error: () => {
+        this.jobFilterBackbones = [];
+      },
+    });
+  }
+
+  goToJobsPage(page: number): void {
+    if (page < 0 || page >= this.jobsTotalPages || page === this.jobsPage) return;
+    this.jobsPage = page;
+    const projectId = this.projectId();
+    if (projectId != null) this.loadGenerationJobs(projectId);
+  }
+
+  isBackboneFilterSelected(id: number): boolean {
+    return this.selectedBackboneIds.includes(id);
+  }
+
+  onBackboneFilterChange(select: HTMLSelectElement): void {
+    const ids = Array.from(select.selectedOptions)
+      .map((option) => Number(option.value))
+      .filter((id) => Number.isFinite(id));
+    this.applyBackboneFilter(ids);
+  }
+
+  clearBackboneFilter(): void {
+    this.applyBackboneFilter([]);
+  }
+
+  /** Changing the backbone filter drops the selection so hidden jobs are not consolidated. */
+  applyBackboneFilter(ids: number[]): void {
+    this.selectedBackboneIds = ids;
+    this.clearJobSelection();
+    this.jobsPage = 0;
+    const projectId = this.projectId();
+    if (projectId != null) this.loadGenerationJobs(projectId);
   }
 
   /** Sorted view of generation jobs according to current sort state. */
@@ -208,6 +277,9 @@ export class ProjectDetail implements OnInit, OnDestroy {
       this.sortColumn = column;
       this.sortDirection = 'asc';
     }
+    this.jobsPage = 0;
+    const projectId = this.projectId();
+    if (projectId != null) this.loadGenerationJobs(projectId);
   }
 
   private compareJobs(a: GenerationJob, b: GenerationJob): number {
@@ -304,6 +376,10 @@ export class ProjectDetail implements OnInit, OnDestroy {
   }
 
   isJobSelected(job: GenerationJob): boolean {
+    if (!this.canSelectJob(job)) return false;
+    if (this.selectionMode === 'filtered') {
+      return !this.excludedJobIds.includes(job.id);
+    }
     return this.selectedJobIds.includes(job.id);
   }
 
@@ -311,8 +387,23 @@ export class ProjectDetail implements OnInit, OnDestroy {
     return job.status === 'COMPLETED';
   }
 
+  get selectedCount(): number {
+    if (this.selectionMode === 'filtered') {
+      return Math.max(0, this.consolidatableCount - this.excludedJobIds.length);
+    }
+    return this.selectedJobIds.length;
+  }
+
   toggleJobSelection(job: GenerationJob): void {
     if (!this.canSelectJob(job)) return;
+    if (this.selectionMode === 'filtered') {
+      if (this.excludedJobIds.includes(job.id)) {
+        this.excludedJobIds = this.excludedJobIds.filter((id) => id !== job.id);
+      } else {
+        this.excludedJobIds = [...this.excludedJobIds, job.id];
+      }
+      return;
+    }
     const idx = this.selectedJobIds.indexOf(job.id);
     if (idx === -1) {
       this.selectedJobIds = [...this.selectedJobIds, job.id];
@@ -321,21 +412,42 @@ export class ProjectDetail implements OnInit, OnDestroy {
     }
   }
 
-  get completedJobs(): GenerationJob[] {
+  get completedJobsOnPage(): GenerationJob[] {
     return this.generationJobs.filter((j) => j.status === 'COMPLETED');
   }
 
-  get allCompletedSelected(): boolean {
-    const completed = this.completedJobs;
-    return completed.length > 0 && completed.every((j) => this.selectedJobIds.includes(j.id));
+  get allCompletedOnPageSelected(): boolean {
+    const completed = this.completedJobsOnPage;
+    return completed.length > 0 && completed.every((j) => this.isJobSelected(j));
   }
 
   toggleSelectAllCompleted(): void {
-    if (this.allCompletedSelected) {
-      this.selectedJobIds = [];
-    } else {
-      this.selectedJobIds = this.completedJobs.map((j) => j.id);
+    const pageIds = this.completedJobsOnPage.map((j) => j.id);
+    if (this.allCompletedOnPageSelected) {
+      if (this.selectionMode === 'filtered') {
+        this.excludedJobIds = Array.from(new Set([...this.excludedJobIds, ...pageIds]));
+      } else {
+        this.selectedJobIds = this.selectedJobIds.filter((id) => !pageIds.includes(id));
+      }
+      return;
     }
+    if (this.selectionMode === 'filtered') {
+      this.excludedJobIds = this.excludedJobIds.filter((id) => !pageIds.includes(id));
+      return;
+    }
+    this.selectedJobIds = Array.from(new Set([...this.selectedJobIds, ...pageIds]));
+  }
+
+  selectAllFilteredResults(): void {
+    this.selectionMode = 'filtered';
+    this.selectedJobIds = [];
+    this.excludedJobIds = [];
+  }
+
+  clearJobSelection(): void {
+    this.selectionMode = 'explicit';
+    this.selectedJobIds = [];
+    this.excludedJobIds = [];
   }
 
   /** Completed backbones for the add-generation-job modal. */
@@ -430,6 +542,14 @@ export class ProjectDetail implements OnInit, OnDestroy {
     });
   }
 
+  openMinibatches(job: GenerationJob): void {
+    if (!this.project) return;
+    const modalRef = this.modalService.open(MinibatchModal, { size: 'xl', scrollable: true });
+    const modal = modalRef.componentInstance as MinibatchModal;
+    modal.projectId = this.project.id;
+    modal.jobId = job.id;
+  }
+
   openAddGenerationJobModal(): void {
     if (!this.project) return;
     const modalRef = this.modalService.open(AddGenerationJobModal, {
@@ -440,62 +560,71 @@ export class ProjectDetail implements OnInit, OnDestroy {
     (modalRef.componentInstance as AddGenerationJobModal).completedBackbones = this.completedBackbones;
     modalRef.closed.subscribe(() => {
       this.loadGenerationJobs(this.project!.id);
+      this.loadJobFilterBackbones(this.project!.id);
     });
   }
 
-  /** Same column order as single-job CSV: mpnn,plddt,ptm,i_ptm,pae,i_pae,rmsd,seq. */
-  private static readonly CSV_HEADER = 'mpnn,plddt,ptm,i_ptm,pae,i_pae,rmsd,seq';
-
   /** Navigate to metrics compare page with selected job IDs. */
   navigateToCompare(): void {
-    if (!this.project || this.selectedJobIds.length < 2) return;
-    const jobIds = this.selectedJobIds.join(',');
-    this.router.navigate(['/projects/detail', this.project.id, 'compare'], { queryParams: { jobIds } });
+    if (!this.project || this.selectedCount < 2) return;
+    this.withSelectedJobIds((ids) => {
+      if (ids.length < 2) return;
+      this.router.navigate(['/projects/detail', this.project!.id, 'compare'], { queryParams: { jobIds: ids.join(',') } });
+    });
   }
 
   /** Navigate to EDA page using all selected jobs as a combined dataset. */
   navigateToEdaMulti(): void {
-    if (!this.project || this.selectedJobIds.length === 0) return;
-    const jobIds = this.selectedJobIds.join(',');
-    this.router.navigate(['/projects/detail', this.project.id, 'eda'], { queryParams: { jobIds } });
+    if (!this.project || this.selectedCount === 0) return;
+    this.withSelectedJobIds((ids) => {
+      if (ids.length === 0) return;
+      this.router.navigate(['/projects/detail', this.project!.id, 'eda'], { queryParams: { jobIds: ids.join(',') } });
+    });
   }
 
-  /** Fetch CSVs for selected runs and download one consolidated file (same columns as single-job CSV). */
+  /**
+   * Download one consolidated CSV. Explicit selections send job ids.
+   * A cross-page "select all filtered" sends the backbone filter so the backend resolves every COMPLETED job.
+   * The download name stays `consolidated-{project}-{timestamp}.csv`.
+   */
   consolidateCsv(): void {
-    if (!this.project || this.selectedJobIds.length === 0) return;
-    const selectedJobs = this.generationJobs.filter((j) => this.selectedJobIds.includes(j.id));
-    if (selectedJobs.length === 0) return;
+    if (!this.project || this.selectedCount === 0) return;
     this.loadingConsolidateCsv = true;
-    const projectId = this.project.id;
-    forkJoin(
-      selectedJobs.map((job) =>
-        this.projectService.getGenerationJobRecordsCsv(projectId, job.id).pipe(
-          catchError(() => of('')),
-        )
-      )
-    ).subscribe({
-      next: (csvs: string[]) => {
+    const body = this.selectionMode === 'filtered'
+      ? {
+          selectAllFiltered: true,
+          backboneIds: this.selectedBackboneIds,
+          excludedJobIds: this.excludedJobIds,
+        }
+      : { jobIds: this.selectedJobIds };
+    const projectName = this.project.name;
+    this.projectService.downloadConsolidatedCsv(this.project.id, body).subscribe({
+      next: (blob) => {
         this.loadingConsolidateCsv = false;
-        const lines: string[] = [];
-        lines.push(ProjectDetail.CSV_HEADER);
-        selectedJobs.forEach((job, i) => {
-          const csv = (csvs[i] ?? '').trim();
-          const parts = csv.split(/\r?\n/).filter((line) => line.length > 0);
-          if (parts.length < 2) return;
-          const dataRows = parts.slice(1);
-          dataRows.forEach((row) => lines.push(row));
-        });
-        if (lines.length <= 1) return;
-        const content = lines.join('\n');
-        const blob = new Blob([content], { type: 'text/csv' });
+        if (!blob || blob.size === 0) return;
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `consolidated-${this.project?.name ?? 'project'}-${Date.now()}.csv`;
+        a.download = `consolidated-${projectName ?? 'project'}-${Date.now()}.csv`;
         a.click();
         URL.revokeObjectURL(url);
       },
       error: () => { this.loadingConsolidateCsv = false; },
+    });
+  }
+
+  private withSelectedJobIds(action: (ids: number[]) => void): void {
+    if (!this.project) return;
+    if (this.selectionMode === 'explicit') {
+      action(this.selectedJobIds);
+      return;
+    }
+    this.projectService.getConsolidatableJobIds(this.project.id, this.selectedBackboneIds).subscribe({
+      next: (ids) => {
+        const excluded = new Set(this.excludedJobIds);
+        action((ids ?? []).filter((id) => !excluded.has(id)));
+      },
+      error: () => this.toastr.error('No se pudieron resolver los jobs seleccionados.'),
     });
   }
 
@@ -605,7 +734,10 @@ export class ProjectDetail implements OnInit, OnDestroy {
         this.jobToDelete = null;
         this.deleteJobModalRef?.close();
         this.deleteJobModalRef = null;
+        this.selectedJobIds = this.selectedJobIds.filter((id) => id !== job.id);
+        this.excludedJobIds = this.excludedJobIds.filter((id) => id !== job.id);
         this.loadGenerationJobs(this.projectId()!);
+        this.loadJobFilterBackbones(this.projectId()!);
       },
       error: (err) => {
         this.toastr.error(err?.error?.message || err?.message || 'Failed to delete job.');

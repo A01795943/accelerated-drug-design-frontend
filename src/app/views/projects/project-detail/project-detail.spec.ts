@@ -13,12 +13,22 @@ describe('ProjectDetail', () => {
   let fixture: ComponentFixture<ProjectDetail>;
   let component: ProjectDetail;
 
+  const emptyJobPage = {
+    jobs: [] as unknown[],
+    totalElements: 0,
+    totalPages: 0,
+    page: 0,
+    size: 10,
+    consolidatableCount: 0,
+  };
+
   const mockProjectService = {
     getProject: jasmine.createSpy('getProject').and.returnValue(
       of({ id: 42, name: 'Test Project' })
     ),
     getBackbones: jasmine.createSpy('getBackbones').and.returnValue(of([])),
-    getGenerationJobs: jasmine.createSpy('getGenerationJobs').and.returnValue(of([])),
+    getGenerationJobs: jasmine.createSpy('getGenerationJobs').and.returnValue(of(emptyJobPage)),
+    getGenerationJobFilterBackbones: jasmine.createSpy('getGenerationJobFilterBackbones').and.returnValue(of([])),
     getProjectTarget: jasmine.createSpy('getProjectTarget').and.returnValue(of('')),
     getProjectComplex: jasmine.createSpy('getProjectComplex').and.returnValue(of('')),
     listCampaigns: jasmine.createSpy('listCampaigns').and.returnValue(of([])),
@@ -101,5 +111,34 @@ describe('ProjectDetail', () => {
     expect(link.getAttribute('target')).toBe('_blank');
     expect(link.getAttribute('rel')).toBe('noopener');
     expect(link.textContent?.trim()).toBe('2PTN');
+  });
+
+  it('disables consolidate until a job is selected and shows the filtered-result action', () => {
+    const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+    const consolidate = Array.from(fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLButtonElement>)
+      .find((el) => el.textContent?.includes('Consolidar'));
+    expect(button).toBeTruthy();
+    expect(consolidate?.disabled).toBeTrue();
+
+    component.generationJobs = [
+      { id: 1, status: 'COMPLETED' },
+      { id: 2, status: 'RUNNING' },
+    ];
+    component.consolidatableCount = 5;
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Seleccionar los 5 resultados filtrados');
+    expect(fixture.nativeElement.textContent).toContain('0 seleccionados');
+    component.toggleJobSelection(component.generationJobs[0]);
+    fixture.detectChanges();
+    expect(component.selectedCount).toBe(1);
+    expect(fixture.nativeElement.textContent).toContain('1 seleccionados');
+
+    component.selectAllFilteredResults();
+    expect(component.selectedCount).toBe(5);
+    component.applyBackboneFilter([9]);
+    expect(component.selectedCount).toBe(0);
+    expect(component.selectionMode).toBe('explicit');
+    expect(component.selectedBackboneIds).toEqual([9]);
   });
 });

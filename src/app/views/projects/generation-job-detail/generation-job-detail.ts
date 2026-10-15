@@ -5,6 +5,7 @@ import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { ProjectService, type GenerationJobDetailDto, type GenerationJobRecord } from '@core/services/project.service';
 import { isInFlightRunStatus, runStatusBadgeClass, runStatusLabel } from '@core/run-status';
 import { PdbContentModal } from '../project-detail/components/pdb-content-modal/pdb-content-modal';
+import { MinibatchModal } from '@views/projects/minibatch-modal/minibatch-modal';
 
 export interface MetricStats {
   min: number | null;
@@ -289,6 +290,14 @@ export class GenerationJobDetail implements OnInit, OnDestroy {
   }
 
   /** Fetches record PDB from API and opens modal. */
+  openMinibatches(): void {
+    if (this.projectId == null || this.jobId == null) return;
+    const modalRef = this.modalService.open(MinibatchModal, { size: 'xl', scrollable: true });
+    const modal = modalRef.componentInstance as MinibatchModal;
+    modal.projectId = this.projectId;
+    modal.jobId = this.jobId;
+  }
+
   openRecordPdbModal(rec: GenerationJobRecord): void {
     if (this.projectId == null || this.jobId == null) return;
     this.loadingRecordPdbN = rec.n;

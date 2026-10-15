@@ -29,6 +29,7 @@
                 <th>ID</th>
                 <th>Nombre</th>
                 <th>Descripción</th>
+                <th>EC</th>
               </tr>
             </thead>
             <tbody>
@@ -46,6 +47,11 @@
                   <span class="text-muted"
                     >{{ project.description || '—' }}</span
                   >
+                </td>
+                <td>
+                  @if (project.ecNumber) {
+                    <span class="badge bg-info-subtle text-info">EC {{ project.ecNumber }}</span>
+                  }
                 </td>
               </tr>
               }

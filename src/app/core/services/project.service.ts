@@ -81,7 +81,70 @@ export interface GenerationJob {
   totalMinibatches?: number | null;
 }
 
+export interface GenerationJobPage {
+  jobs: GenerationJob[];
+  totalElements: number;
+  totalPages: number;
+  page: number;
+  size: number;
+  consolidatableCount: number;
+}
+
+export interface BackboneFilterOption {
+  id: number;
+  name: string;
+}
+
+export interface ConsolidateCsvRequest {
+  jobIds?: number[];
+  selectAllFiltered?: boolean;
+  backboneIds?: number[];
+  excludedJobIds?: number[];
+}
+
 /** Detalle de job para pantalla (sin bestPdb, fasta; se obtienen por endpoints separados). */
+export interface MinibatchInstanceRef {
+  id: number;
+  name?: string | null;
+  baseUrl?: string | null;
+}
+
+export interface MinibatchAttempt {
+  attempt: number;
+  instance?: MinibatchInstanceRef | null;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+  durationMillis?: number | null;
+  outcome?: string | null;
+  error?: string | null;
+}
+
+export interface GenerationJobMinibatchRow {
+  idx: number;
+  nOffset: number;
+  sequenceEnd: number;
+  numSeqs: number;
+  status: string;
+  runId: string;
+  instance?: MinibatchInstanceRef | null;
+  attempts: number;
+  error?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  durationMillis?: number | null;
+  attemptHistory: MinibatchAttempt[];
+}
+
+export interface GenerationJobMinibatches {
+  jobId: number;
+  jobStatus?: string | null;
+  jobStartedAt?: string | null;
+  jobCompletedAt?: string | null;
+  completedMinibatches?: number | null;
+  totalMinibatches?: number | null;
+  minibatches: GenerationJobMinibatchRow[];
+}
+
 export interface GenerationJobDetailDto {
   id: number;
   runId?: string;
@@ -351,12 +414,53 @@ export class ProjectService {
     );
   }
 
-  getGenerationJobs(projectId: number): Observable<GenerationJob[]> {
-    return this.http.get<GenerationJob[]>(`${this.apiUrl}/${projectId}/generation-jobs`);
+  getGenerationJobs(
+    projectId: number,
+    options?: {
+      page?: number;
+      size?: number;
+      backboneIds?: number[];
+      sort?: string;
+      direction?: 'asc' | 'desc';
+    }
+  ): Observable<GenerationJobPage> {
+    let params = new HttpParams();
+    if (options?.page != null) params = params.set('page', String(options.page));
+    if (options?.size != null) params = params.set('size', String(options.size));
+    if (options?.sort) params = params.set('sort', options.sort);
+    if (options?.direction) params = params.set('direction', options.direction);
+    for (const id of options?.backboneIds ?? []) {
+      params = params.append('backboneIds', String(id));
+    }
+    return this.http.get<GenerationJobPage>(`${this.apiUrl}/${projectId}/generation-jobs`, { params });
+  }
+
+  getGenerationJobFilterBackbones(projectId: number): Observable<BackboneFilterOption[]> {
+    return this.http.get<BackboneFilterOption[]>(`${this.apiUrl}/${projectId}/generation-jobs/filter-backbones`);
+  }
+
+  getConsolidatableJobIds(projectId: number, backboneIds: number[]): Observable<number[]> {
+    let params = new HttpParams();
+    for (const id of backboneIds) {
+      params = params.append('backboneIds', String(id));
+    }
+    return this.http.get<number[]>(`${this.apiUrl}/${projectId}/generation-jobs/consolidatable-ids`, { params });
+  }
+
+  downloadConsolidatedCsv(projectId: number, body: ConsolidateCsvRequest): Observable<Blob> {
+    return this.http.post(`${this.apiUrl}/${projectId}/generation-jobs/consolidated-csv`, body, {
+      responseType: 'blob',
+    });
   }
 
   getGenerationJob(projectId: number, jobId: number): Observable<GenerationJobDetailDto> {
     return this.http.get<GenerationJobDetailDto>(`${this.apiUrl}/${projectId}/generation-jobs/${jobId}`);
+  }
+
+  getGenerationJobMinibatches(projectId: number, jobId: number): Observable<GenerationJobMinibatches> {
+    return this.http.get<GenerationJobMinibatches>(
+      `${this.apiUrl}/${projectId}/generation-jobs/${jobId}/minibatches`
+    );
   }
 
   getGenerationJobBestPdb(projectId: number, jobId: number): Observable<string> {

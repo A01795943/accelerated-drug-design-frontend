@@ -9,6 +9,9 @@
         <a [routerLink]="['/projects/detail', projectId]" class="btn btn-sm btn-outline-secondary">← Volver al proyecto</a>
         <h4 class="mb-0">Job {{ job.runId ?? job.id }}</h4>
         <span class="badge {{ runStatusBadgeClass(job.status) }}">{{ runStatusLabel(job.status) }}</span>
+        @if (job.totalMinibatches != null) {
+          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="openMinibatches()">Minibatches</button>
+        }
         @if (job.coreInstanceName) {
           <span class="text-muted small">Instancia: {{ job.coreInstanceName }}</span>
         }

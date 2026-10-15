@@ -1,0 +1,200 @@
+<div class="row">
+  <div class="col-xl-12">
+    <div class="card mb-4">
+      <div class="card-header d-flex align-items-center justify-content-between gap-2 flex-wrap py-3 px-4">
+        <h4 class="card-title mb-0">Progreso de campaña #{{ campaignId }}</h4>
+        <a
+          [routerLink]="['/projects/detail', projectId]"
+          class="btn btn-sm btn-outline-secondary"
+        >
+          Volver al proyecto
+        </a>
+      </div>
+      <div class="card-body">
+        @if (loading && !campaign) {
+          <p class="text-muted mb-0">Cargando campaña…</p>
+        } @else if (error && !campaign) {
+          <div class="alert alert-warning mb-0">{{ error }}</div>
+        } @else if (campaign) {
+          @if (error) {
+            <div class="alert alert-warning">{{ error }}</div>
+          }
+
+          <div class="row mb-4">
+            <div class="col-lg-4 mb-3 mb-lg-0">
+              <label class="form-label text-muted small mb-1">Estado</label>
+              <div>
+                <span class="badge {{ statusBadgeClass(campaign.status) }}">{{ campaign.status }}</span>
+              </div>
+            </div>
+            <div class="col-lg-4 mb-3 mb-lg-0">
+              <label class="form-label text-muted small mb-1">Secuencias / temperatura</label>
+              <p class="mb-0 fw-medium">{{ campaign.numSeqsPerTemperature ?? '—' }}</p>
+            </div>
+            <div class="col-lg-4">
+              <label class="form-label text-muted small mb-1">Temperaturas</label>
+              <p class="mb-0 font-monospace small">{{ campaign.temperatures?.join(', ') || '—' }}</p>
+            </div>
+          </div>
+
+          @if (campaign.backboneConfigs.length === 0) {
+            <p class="text-muted mb-0">Aún no hay configuraciones en esta campaña.</p>
+          } @else {
+            @for (config of campaign.backboneConfigs; track $index; let i = $index) {
+              <div class="card mb-3">
+                <div class="card-header d-flex align-items-center justify-content-between gap-2 py-3 px-4">
+                  <div class="d-flex flex-column flex-sm-row align-items-sm-center gap-2">
+                    <h5 class="card-title mb-0">Configuración {{ i + 1 }}</h5>
+                    <span class="text-muted small">
+                      {{ config.completedBackbones }} / {{ config.numBackbones }} backbones
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center justify-content-center rounded-circle"
+                    style="width: 2rem; height: 2rem;"
+                    [attr.aria-expanded]="!isConfigCollapsed(i)"
+                    [attr.aria-controls]="'campaignConfigBody' + i"
+                    (click)="toggleConfig(i)"
+                    [attr.title]="isConfigCollapsed(i) ? 'Mostrar' : 'Ocultar'"
+                  >
+                    <iconify-icon
+                      [icon]="isConfigCollapsed(i) ? 'solar:alt-arrow-down-bold' : 'solar:alt-arrow-up-bold'"
+                      class="fs-5"
+                    ></iconify-icon>
+                  </button>
+                </div>
+                <div [ngbCollapse]="isConfigCollapsed(i)" [id]="'campaignConfigBody' + i">
+                  <div class="card-body">
+                    <div class="row mb-3">
+                      <div class="col-lg-12 mb-3">
+                        <label class="form-label text-muted small mb-1">Contigs</label>
+                        <p class="mb-0 font-monospace small">{{ config.contigs || '—' }}</p>
+                      </div>
+                      <div class="col-lg-6 mb-3">
+                        <label class="form-label text-muted small mb-1">Hotspots</label>
+                        @if (hotspotChips(config).length) {
+                          <div class="d-flex flex-wrap gap-1">
+                            @for (hs of hotspotChips(config); track hs) {
+                              <span class="badge bg-light text-dark border">{{ hs }}</span>
+                            }
+                          </div>
+                        } @else {
+                          <p class="mb-0">—</p>
+                        }
+                      </div>
+                      <div class="col-lg-6 mb-3">
+                        <label class="form-label text-muted small mb-1">Cadenas a eliminar</label>
+                        @if (chainChips(config).length) {
+                          <div class="d-flex flex-wrap gap-1">
+                            @for (chain of chainChips(config); track chain) {
+                              <span class="badge bg-light text-dark border">{{ chain }}</span>
+                            }
+                          </div>
+                        } @else {
+                          <p class="mb-0">—</p>
+                        }
+                      </div>
+                      <div class="col-lg-6 mb-3 mb-lg-0">
+                        <label class="form-label text-muted small mb-1">Backbones solicitados</label>
+                        <p class="mb-0 fw-medium">{{ config.numBackbones }}</p>
+                      </div>
+                      <div class="col-lg-6">
+                        <label class="form-label text-muted small mb-1">Backbones completados</label>
+                        <p class="mb-0 fw-medium">{{ config.completedBackbones }} / {{ config.numBackbones }}</p>
+                      </div>
+                    </div>
+
+                    <div class="d-flex flex-column gap-1 mb-4" style="min-width: 12rem; max-width: 28rem;">
+                      <div
+                        class="progress"
+                        style="height: 0.5rem;"
+                        role="progressbar"
+                        [attr.aria-valuenow]="configProgressPercent(config)"
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                        [attr.aria-label]="'Progreso de configuración ' + (i + 1)"
+                      >
+                        <div
+                          class="progress-bar"
+                          [style.width.%]="configProgressPercent(config)"
+                        ></div>
+                      </div>
+                      <span class="small text-muted text-nowrap">
+                        {{ config.completedBackbones }} / {{ config.numBackbones }} backbones
+                        ({{ configProgressPercent(config) | number: '1.2-2' }}%)
+                      </span>
+                    </div>
+
+                    @if (config.backbones.length === 0) {
+                      <p class="text-muted mb-0">Aún no hay backbones físicos para esta configuración.</p>
+                    } @else {
+                      <div class="row g-3">
+                        @for (bb of config.backbones; track bb.id; let j = $index) {
+                          <div class="col-12">
+                            <div class="card border shadow-sm h-100">
+                              <div class="card-body p-3">
+                                <div class="d-flex justify-content-between align-items-start gap-2 mb-2 flex-wrap">
+                                  <span class="fw-medium">Backbone físico #{{ j + 1 }}</span>
+                                  <span class="badge {{ statusBadgeClass(bb.status) }}">{{ bb.status }}</span>
+                                </div>
+                                @if (bb.runId) {
+                                  <p class="small text-muted mb-1">
+                                    Run ID: <span class="font-monospace">{{ bb.runId }}</span>
+                                  </p>
+                                }
+                                @if (bb.backboneId) {
+                                  <p class="small text-muted mb-1">Backbone ID: {{ bb.backboneId }}</p>
+                                }
+                                @if (bb.error) {
+                                  <div class="alert alert-danger py-2 small mb-3">{{ bb.error }}</div>
+                                }
+
+                                <div class="table-responsive">
+                                  <table class="table table-sm align-middle mb-0 table-hover">
+                                    <thead class="bg-light-subtle">
+                                      <tr>
+                                        <th>Temperatura</th>
+                                        <th>Estado</th>
+                                        <th>Job ID</th>
+                                        <th>Registros</th>
+                                        <th>Error</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      @for (job of bb.temperatureJobs; track job.temperature) {
+                                        <tr>
+                                          <td>{{ job.temperature }}</td>
+                                          <td>
+                                            <span class="badge {{ statusBadgeClass(job.status) }}">{{ job.status }}</span>
+                                          </td>
+                                          <td>{{ job.jobId ?? '—' }}</td>
+                                          <td>{{ job.totalRecords ?? '—' }}</td>
+                                          <td>
+                                            @if (job.error) {
+                                              <span class="small text-danger">{{ job.error }}</span>
+                                            } @else {
+                                              —
+                                            }
+                                          </td>
+                                        </tr>
+                                      }
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
+                </div>
+              </div>
+            }
+          }
+        }
+      </div>
+    </div>
+  </div>
+</div>
